@@ -10,12 +10,38 @@ const SHEET_NAME =
 
 
 /* =========================================================
-   GOOGLE SHEET URL
+   MAIN GOOGLE SHEET URL
+
+   IMPORTANT:
+   Do NOT use headers=0 or headers=1 here.
+
+   We keep the original working request because it correctly
+   returns the student rows and company checkbox columns.
 ========================================================= */
 
 const SHEET_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
     `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+
+
+/* =========================================================
+   COMPANY METADATA URL
+
+   Your sheet is:
+
+   Row 1 → Company
+   Row 2 → Stipend
+   Row 3 → CTC
+
+   C = first company column
+   Z = maximum supported column
+
+   This request is ONLY for company metadata.
+========================================================= */
+
+const META_URL =
+    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
+    `?tqx=out:json&range=C1:Z3&headers=0`;
 
 
 /* =========================================================
@@ -25,7 +51,9 @@ const SHEET_URL =
 async function loadSheet() {
 
     const companyGrid =
-        document.getElementById("companyGrid");
+        document.getElementById(
+            "companyGrid"
+        );
 
 
     companyGrid.innerHTML = `
@@ -37,16 +65,31 @@ async function loadSheet() {
 
     try {
 
-        console.log("Loading sheet...");
-        console.log(SHEET_URL);
+        console.log(
+            "================================="
+        );
+
+        console.log(
+            "Loading sheet..."
+        );
+
+        console.log(
+            SHEET_URL
+        );
+
+        console.log(
+            "================================="
+        );
 
 
         /* =================================================
-           FETCH GOOGLE SHEET
+           FETCH MAIN STUDENT DATA
         ================================================= */
 
         const response =
-            await fetch(SHEET_URL);
+            await fetch(
+                SHEET_URL
+            );
 
 
         if (!response.ok) {
@@ -62,39 +105,23 @@ async function loadSheet() {
             await response.text();
 
 
-        console.log("Google response:");
-        console.log(text);
+        console.log(
+            "Google response:"
+        );
+
+        console.log(
+            text
+        );
 
 
         /* =================================================
-           EXTRACT JSON FROM GVIZ RESPONSE
+           PARSE GVIZ RESPONSE
         ================================================= */
 
-        const start =
-            text.indexOf("(") + 1;
-
-        const end =
-            text.lastIndexOf(")");
-
-
-        if (
-            start <= 0 ||
-            end <= start
-        ) {
-
-            throw new Error(
-                "Invalid Google Sheets response."
-            );
-
-        }
-
-
-        const jsonText =
-            text.substring(start, end);
-
-
         const data =
-            JSON.parse(jsonText);
+            parseGoogleResponse(
+                text
+            );
 
 
         console.log(
@@ -102,10 +129,6 @@ async function loadSheet() {
             data
         );
 
-
-        /* =================================================
-           CHECK DATA
-        ================================================= */
 
         if (
             !data.table ||
@@ -121,16 +144,105 @@ async function loadSheet() {
 
 
         /* =================================================
+           FETCH COMPANY METADATA
+
+           C1:Z3
+
+           Row 1 → Company
+           Row 2 → Stipend
+           Row 3 → CTC
+        ================================================= */
+
+        console.log(
+            "================================="
+        );
+
+        console.log(
+            "Loading company metadata..."
+        );
+
+        console.log(
+            META_URL
+        );
+
+
+        const metaResponse =
+            await fetch(
+                META_URL
+            );
+
+
+        if (!metaResponse.ok) {
+
+            throw new Error(
+                `Could not load company metadata: ${metaResponse.status}`
+            );
+
+        }
+
+
+        const metaText =
+            await metaResponse.text();
+
+
+        console.log(
+            "Company metadata response:"
+        );
+
+        console.log(
+            metaText
+        );
+
+
+        const metaData =
+            parseGoogleResponse(
+                metaText
+            );
+
+
+        console.log(
+            "Parsed company metadata:",
+            metaData
+        );
+
+
+        if (
+            !metaData.table
+        ) {
+
+            throw new Error(
+                "Could not read company metadata."
+            );
+
+        }
+
+
+        /* =================================================
            PROCESS DATA
+
+           IMPORTANT:
+           The original student-processing logic remains
+           unchanged.
         ================================================= */
 
         const companies =
-            processSheet(data.table);
+            processSheet(
+                data.table,
+                metaData.table
+            );
 
+
+        console.log(
+            "================================="
+        );
 
         console.log(
             "FINAL COMPANIES:",
             companies
+        );
+
+        console.log(
+            "================================="
         );
 
 
@@ -138,7 +250,9 @@ async function loadSheet() {
            RENDER CARDS
         ================================================= */
 
-        renderCompanies(companies);
+        renderCompanies(
+            companies
+        );
 
     }
 
@@ -160,7 +274,9 @@ async function loadSheet() {
                 </h3>
 
                 <p>
-                    ${escapeHTML(error.message)}
+                    ${escapeHTML(
+                        error.message
+                    )}
                 </p>
 
             </div>
@@ -173,13 +289,58 @@ async function loadSheet() {
 
 
 /* =========================================================
+   PARSE GOOGLE GVIZ RESPONSE
+========================================================= */
+
+function parseGoogleResponse(
+    text
+) {
+
+    const start =
+        text.indexOf("(") + 1;
+
+    const end =
+        text.lastIndexOf(")");
+
+
+    if (
+        start <= 0 ||
+        end <= start
+    ) {
+
+        throw new Error(
+            "Invalid Google Sheets response."
+        );
+
+    }
+
+
+    const jsonText =
+        text.substring(
+            start,
+            end
+        );
+
+
+    return JSON.parse(
+        jsonText
+    );
+
+}
+
+
+/* =========================================================
    PROCESS GOOGLE SHEET
 ========================================================= */
 
-function processSheet(table) {
+function processSheet(
+    table,
+    metaTable
+) {
 
     const columns =
         table.cols || [];
+
 
     const rows =
         table.rows || [];
@@ -200,18 +361,33 @@ function processSheet(table) {
     const companies = [];
 
 
-    /*
-       Google GViz has interpreted the first three
-       rows of the sheet as column information.
+    /* =====================================================
+       METADATA ROWS
 
-       Therefore:
+       metaTable is C1:Z3.
+
+       metaRows[0] → Row 1 → company names
+       metaRows[1] → Row 2 → stipend
+       metaRows[2] → Row 3 → CTC
+    ===================================================== */
+
+    const metaRows =
+        metaTable.rows || [];
+
+
+    console.log(
+        "METADATA ROWS:",
+        metaRows.length
+    );
+
+
+    /* =====================================================
+       COMPANY COLUMNS
 
        columns[0] = Roll Number
        columns[1] = Name
-
        columns[2+] = Companies
-    */
-
+    ===================================================== */
 
     for (
         let columnIndex = 2;
@@ -224,28 +400,133 @@ function processSheet(table) {
             columns[columnIndex];
 
 
-        /* =================================================
-           GET COMPANY LABEL
-        ================================================= */
-
-        const label =
-            String(
-                column.label || ""
-            ).trim();
+        console.log(
+            "================================="
+        );
 
 
         console.log(
             "COLUMN:",
-            columnIndex,
-            label
+            columnIndex
         );
 
 
-        /*
-           Ignore completely empty columns.
-        */
+        /* =================================================
+           METADATA COLUMN
 
-        if (!label) {
+           Main sheet:
+               C = columnIndex 2
+               D = columnIndex 3
+               E = columnIndex 4
+
+           Metadata range starts at C:
+
+               metadata 0 = C
+               metadata 1 = D
+               metadata 2 = E
+
+           Therefore:
+
+               metaColumnIndex = columnIndex - 2
+        ================================================= */
+
+        const metaColumnIndex =
+            columnIndex - 2;
+
+
+        /* =================================================
+           COMPANY NAME
+        ================================================= */
+
+        const companyName =
+            getDisplayValue(
+                metaRows[0]?.c?.[
+                    metaColumnIndex
+                ]
+            ).trim();
+
+
+        /* =================================================
+           STIPEND
+        ================================================= */
+
+        const stipend =
+            getDisplayValue(
+                metaRows[1]?.c?.[
+                    metaColumnIndex
+                ]
+            ).trim();
+
+
+        /* =================================================
+           CTC
+        ================================================= */
+
+        const ctc =
+            getDisplayValue(
+                metaRows[2]?.c?.[
+                    metaColumnIndex
+                ]
+            ).trim();
+
+
+        console.log(
+            "COMPANY METADATA:",
+            {
+                columnIndex:
+                    columnIndex,
+
+                metaColumnIndex:
+                    metaColumnIndex,
+
+                companyName:
+                    companyName,
+
+                stipend:
+                    stipend,
+
+                ctc:
+                    ctc
+            }
+        );
+
+
+        /* =================================================
+           FALLBACK COMPANY NAME
+
+           In case metadata somehow does not contain the
+           company name, use the original GViz column label.
+
+           This keeps the application robust.
+        ================================================= */
+
+        let finalCompanyName =
+            companyName;
+
+
+        if (
+            !finalCompanyName
+        ) {
+
+            finalCompanyName =
+                String(
+                    column.label || ""
+                ).trim();
+
+        }
+
+
+        /* =================================================
+           IGNORE EMPTY COLUMNS
+        ================================================= */
+
+        if (
+            !finalCompanyName
+        ) {
+
+            console.log(
+                "Skipping empty column"
+            );
 
             continue;
 
@@ -253,105 +534,108 @@ function processSheet(table) {
 
 
         /* =================================================
-           PARSE COMPANY INFORMATION
-        ================================================= */
-
-        const company =
-            parseCompanyLabel(label);
-
-
-        /* =================================================
            FIND STUDENTS
         ================================================= */
 
-        const selectedStudents = [];
+        const selectedStudents =
+            [];
 
 
-        rows.forEach(row => {
+        rows.forEach(
+            row => {
 
-            const cells =
-                row.c || [];
-
-
-            /* ---------------------------------------------
-               ROLL NUMBER
-            --------------------------------------------- */
-
-            const roll =
-                getDisplayValue(
-                    cells[0]
-                );
+                const cells =
+                    row.c || [];
 
 
-            /* ---------------------------------------------
-               STUDENT NAME
-            --------------------------------------------- */
+                /* -----------------------------------------
+                   ROLL NUMBER
+                ----------------------------------------- */
 
-            const name =
-                getDisplayValue(
-                    cells[1]
-                );
+                const roll =
+                    getDisplayValue(
+                        cells[0]
+                    );
 
 
-            /*
-               Ignore empty rows.
-            */
+                /* -----------------------------------------
+                   STUDENT NAME
+                ----------------------------------------- */
 
-            if (
-                !roll &&
-                !name
-            ) {
+                const name =
+                    getDisplayValue(
+                        cells[1]
+                    );
 
-                return;
+
+                /* -----------------------------------------
+                   IGNORE EMPTY ROWS
+                ----------------------------------------- */
+
+                if (
+                    !roll &&
+                    !name
+                ) {
+
+                    return;
+
+                }
+
+
+                /* -----------------------------------------
+                   COMPANY VALUE
+
+                   This is the IMPORTANT part.
+
+                   We continue using the original
+                   cells[columnIndex] logic.
+                ----------------------------------------- */
+
+                const companyCell =
+                    cells[columnIndex];
+
+
+                const value =
+                    getCellValue(
+                        companyCell
+                    );
+
+
+                /* -----------------------------------------
+                   GOOGLE CHECKBOX VALUES
+
+                   true
+                   "TRUE"
+                   false
+                   "FALSE"
+                ----------------------------------------- */
+
+                const selected =
+                    value === true ||
+                    String(value)
+                        .trim()
+                        .toLowerCase() ===
+                        "true";
+
+
+                if (
+                    selected
+                ) {
+
+                    selectedStudents.push({
+
+                        roll:
+                            roll,
+
+                        name:
+                            name
+
+                    });
+
+                }
 
             }
-
-
-            /* ---------------------------------------------
-               COMPANY VALUE
-            --------------------------------------------- */
-
-            const companyCell =
-                cells[columnIndex];
-
-
-            const value =
-                getCellValue(
-                    companyCell
-                );
-
-
-            /*
-               Google checkbox values can be:
-
-               true
-               "TRUE"
-               false
-               "FALSE"
-            */
-
-            const selected =
-                value === true ||
-                String(value)
-                    .trim()
-                    .toLowerCase() === "true";
-
-
-            if (selected) {
-
-                selectedStudents.push({
-
-                    roll:
-                        roll,
-
-                    name:
-                        name
-
-                });
-
-            }
-
-        });
+        );
 
 
         /* =================================================
@@ -363,19 +647,19 @@ function processSheet(table) {
 
 
         /* =================================================
-           ADD COMPANY
+           CREATE COMPANY OBJECT
         ================================================= */
 
-        companies.push({
+        const company = {
 
             name:
-                company.name,
+                finalCompanyName,
 
             stipend:
-                company.stipend,
+                stipend || "—",
 
             ctc:
-                company.ctc,
+                ctc || "—",
 
             count:
                 count,
@@ -383,18 +667,25 @@ function processSheet(table) {
             students:
                 selectedStudents
 
-        });
+        };
 
+
+        /* =================================================
+           LOG FINAL COMPANY DATA
+        ================================================= */
 
         console.log(
             "COMPANY DATA:",
-            {
-                name: company.name,
-                stipend: company.stipend,
-                ctc: company.ctc,
-                count: count,
-                students: selectedStudents
-            }
+            company
+        );
+
+
+        /* =================================================
+           ADD COMPANY
+        ================================================= */
+
+        companies.push(
+            company
         );
 
     }
@@ -406,193 +697,12 @@ function processSheet(table) {
 
 
 /* =========================================================
-   PARSE COMPANY LABEL
-=========================================================
-
-   Examples:
-
-   Barklays 7.5K 5.5L
-   JPMC 80K
-   Delloitte 25K
-   Hartford 40K
-   Coforge 15K 5.5L
-   DBS
-   UBS (1) 1L 16.5L
-   EA
-   Loyality Jagurnat 20K
-   ValueMomentum 40K 6.5L
-   UBS (2)
-   Asset Sence
-
-========================================================= */
-
-function parseCompanyLabel(label) {
-
-    let text =
-        String(label || "").trim();
-
-
-    /* =================================================
-       MONEY PATTERN
-
-       Supports:
-
-       7.5K
-       80K
-       25K
-       40K
-       15K
-       5.5L
-       1L
-       16.5L
-       6.5L
-
-    ================================================= */
-
-    const moneyRegex =
-        /\d+(?:\.\d+)?\s*[KLMklm]/g;
-
-
-    /* =================================================
-       FIND MONEY VALUES
-    ================================================= */
-
-    const matches =
-        text.match(moneyRegex) || [];
-
-
-    /* =================================================
-       NORMALIZE VALUES
-    ================================================= */
-
-    const values =
-        matches.map(value => {
-
-            return value
-                .replace(/\s+/g, "")
-                .toUpperCase();
-
-        });
-
-
-    /* =================================================
-       REMOVE MONEY FROM COMPANY NAME
-    ================================================= */
-
-    let companyName =
-        text.replace(
-            moneyRegex,
-            ""
-        );
-
-
-    companyName =
-        companyName
-            .replace(/\s+/g, " ")
-            .trim();
-
-
-    /* =================================================
-       DEFAULT VALUES
-    ================================================= */
-
-    let stipend =
-        "—";
-
-    let ctc =
-        "—";
-
-
-    /* =================================================
-       ONE MONEY VALUE
-
-       Example:
-
-       JPMC 80K
-
-       Company:
-       JPMC
-
-       Stipend:
-       80K
-
-       CTC:
-       —
-    ================================================= */
-
-    if (
-        values.length === 1
-    ) {
-
-        stipend =
-            values[0];
-
-    }
-
-
-    /* =================================================
-       TWO MONEY VALUES
-
-       Example:
-
-       Barklays 7.5K 5.5L
-
-       Company:
-       Barklays
-
-       Stipend:
-       7.5K
-
-       CTC:
-       5.5L
-    ================================================= */
-
-    else if (
-        values.length >= 2
-    ) {
-
-        stipend =
-            values[0];
-
-        ctc =
-            values[1];
-
-    }
-
-
-    console.log(
-        "PARSED COMPANY:",
-        {
-            original: label,
-            name: companyName,
-            stipend: stipend,
-            ctc: ctc
-        }
-    );
-
-
-    return {
-
-        name:
-            companyName ||
-            "Unknown Company",
-
-        stipend:
-            stipend,
-
-        ctc:
-            ctc
-
-    };
-
-}
-
-
-/* =========================================================
    GET RAW CELL VALUE
 ========================================================= */
 
-function getCellValue(cell) {
+function getCellValue(
+    cell
+) {
 
     if (!cell) {
 
@@ -620,7 +730,9 @@ function getCellValue(cell) {
    GET DISPLAY VALUE
 ========================================================= */
 
-function getDisplayValue(cell) {
+function getDisplayValue(
+    cell
+) {
 
     if (!cell) {
 
@@ -630,13 +742,16 @@ function getDisplayValue(cell) {
 
 
     /*
-       Use Google's formatted value first.
+       Google provides:
 
-       This prevents:
+       v = raw value
+       f = formatted/display value
+
+       We prefer f because roll numbers such as:
 
        160123737001
 
-       from becoming:
+       should not become:
 
        1.60123737001E11
     */
@@ -648,7 +763,7 @@ function getDisplayValue(cell) {
 
         return String(
             cell.f
-        );
+        ).trim();
 
     }
 
@@ -660,7 +775,7 @@ function getDisplayValue(cell) {
 
         return String(
             cell.v
-        );
+        ).trim();
 
     }
 
@@ -674,7 +789,9 @@ function getDisplayValue(cell) {
    RENDER COMPANY CARDS
 ========================================================= */
 
-function renderCompanies(companies) {
+function renderCompanies(
+    companies
+) {
 
     const companyGrid =
         document.getElementById(
@@ -682,7 +799,8 @@ function renderCompanies(companies) {
         );
 
 
-    companyGrid.innerHTML = "";
+    companyGrid.innerHTML =
+        "";
 
 
     /* =====================================================
@@ -714,280 +832,337 @@ function renderCompanies(companies) {
        CREATE CARDS
     ===================================================== */
 
-    companies.forEach(company => {
-
-        const card =
-            document.createElement(
-                "div"
-            );
+    companies.forEach(
+        company => {
 
 
-        card.className =
-            "company-card";
+            const card =
+                document.createElement(
+                    "div"
+                );
 
 
-        /* =================================================
-           STUDENT SECTION
-        ================================================= */
-
-        let studentSection =
-            "";
+            card.className =
+                "company-card";
 
 
-        if (
-            company.students.length > 0
-        ) {
+            /* =================================================
+               STUDENT SECTION
+            ================================================= */
 
-            studentSection = `
-
-                <div class="students-section">
-
-
-                    <button
-                        class="students-toggle"
-                        type="button"
-                    >
-
-                        <span>
-                            Show Students
-                        </span>
-
-                        <span class="arrow">
-                            ▼
-                        </span>
-
-                    </button>
+            let studentSection =
+                "";
 
 
-                    <div class="students-list">
+            if (
+                company.students.length > 0
+            ) {
 
-                        ${
-
-                            company.students
-                                .map(
-                                    student => `
-
-                                        <div
-                                            class="student-row"
-                                        >
-
-                                            <div
-                                                class="student-roll"
-                                            >
-                                                ${escapeHTML(
-                                                    student.roll
-                                                )}
-                                            </div>
-
-
-                                            <div
-                                                class="student-name"
-                                            >
-                                                ${escapeHTML(
-                                                    student.name
-                                                )}
-                                            </div>
-
-                                        </div>
-
-                                    `
-                                )
-                                .join("")
-
-                        }
-
-                    </div>
-
-
-                </div>
-
-            `;
-
-        }
-
-        else {
-
-            studentSection = `
-
-                <div
-                    class="students-section"
-                >
+                studentSection = `
 
                     <div
-                        class="no-students"
+                        class="students-section"
                     >
 
-                        No students selected
+                        <button
+                            class="students-toggle"
+                            type="button"
+                        >
+
+                            <span>
+                                Show Students
+                            </span>
+
+                            <span
+                                class="arrow"
+                            >
+                                ▼
+                            </span>
+
+                        </button>
+
+
+                        <div
+                            class="students-list"
+                        >
+
+                            ${
+                                company.students
+                                    .map(
+                                        student => `
+
+                                            <div
+                                                class="student-row"
+                                            >
+
+                                                <div
+                                                    class="student-roll"
+                                                >
+
+                                                    ${escapeHTML(
+                                                        student.roll
+                                                    )}
+
+                                                </div>
+
+
+                                                <div
+                                                    class="student-name"
+                                                >
+
+                                                    ${escapeHTML(
+                                                        student.name
+                                                    )}
+
+                                                </div>
+
+                                            </div>
+
+                                        `
+                                    )
+                                    .join("")
+                            }
+
+                        </div>
 
                     </div>
+
+                `;
+
+            }
+
+
+            else {
+
+                studentSection = `
+
+                    <div
+                        class="students-section"
+                    >
+
+                        <div
+                            class="no-students"
+                        >
+
+                            No students selected
+
+                        </div>
+
+                    </div>
+
+                `;
+
+            }
+
+
+            /* =================================================
+               CARD HTML
+            ================================================= */
+
+            card.innerHTML = `
+
+                <div
+                    class="card-header"
+                >
+
+                    <h2>
+                        ${escapeHTML(
+                            company.name
+                        )}
+                    </h2>
+
+                </div>
+
+
+                <div
+                    class="card-body"
+                >
+
+
+                    <!-- =====================================
+                         STIPEND / CTC
+                    ====================================== -->
+
+                    <div
+                        class="details"
+                    >
+
+
+                        <div
+                            class="detail-box"
+                        >
+
+                            <div
+                                class="detail-title"
+                            >
+                                Stipend
+                            </div>
+
+
+                            <div
+                                class="detail-value"
+                            >
+
+                                ${escapeHTML(
+                                    company.stipend
+                                )}
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            class="detail-box"
+                        >
+
+                            <div
+                                class="detail-title"
+                            >
+                                CTC
+                            </div>
+
+
+                            <div
+                                class="detail-value"
+                            >
+
+                                ${escapeHTML(
+                                    company.ctc
+                                )}
+
+                            </div>
+
+                        </div>
+
+
+                    </div>
+
+
+                    <!-- =====================================
+                         STUDENT COUNT
+                    ====================================== -->
+
+                    <div
+                        class="count-box"
+                    >
+
+                        <div
+                            class="count-label"
+                        >
+                            Students
+                        </div>
+
+
+                        <div
+                            class="count-value"
+                        >
+
+                            ${company.count}
+
+                        </div>
+
+                    </div>
+
+
+                    <!-- =====================================
+                         STUDENTS
+                    ====================================== -->
+
+                    ${studentSection}
+
 
                 </div>
 
             `;
 
-        }
+
+            /* =================================================
+               COLLAPSE / EXPAND
+            ================================================= */
+
+            const toggle =
+                card.querySelector(
+                    ".students-toggle"
+                );
 
 
-        /* =================================================
-           CARD HTML
-        ================================================= */
-
-        card.innerHTML = `
-
-            <div class="card-header">
-
-                <h2>
-                    ${escapeHTML(
-                        company.name
-                    )}
-                </h2>
-
-            </div>
+            const studentsList =
+                card.querySelector(
+                    ".students-list"
+                );
 
 
-            <div class="card-body">
+            if (
+                toggle &&
+                studentsList
+            ) {
+
+                toggle.addEventListener(
+                    "click",
+                    () => {
 
 
-                <div class="details">
+                        const isOpen =
+                            studentsList
+                                .classList
+                                .contains(
+                                    "show"
+                                );
 
 
-                    <div class="detail-box">
-
-                        <div class="detail-title">
-                            Stipend
-                        </div>
-
-                        <div class="detail-value">
-                            ${escapeHTML(
-                                company.stipend
-                            )}
-                        </div>
-
-                    </div>
-
-
-                    <div class="detail-box">
-
-                        <div class="detail-title">
-                            CTC
-                        </div>
-
-                        <div class="detail-value">
-                            ${escapeHTML(
-                                company.ctc
-                            )}
-                        </div>
-
-                    </div>
-
-
-                </div>
-
-
-                <div class="count-box">
-
-                    <div class="count-label">
-                        Students
-                    </div>
-
-                    <div class="count-value">
-                        ${company.count}
-                    </div>
-
-                </div>
-
-
-                ${studentSection}
-
-
-            </div>
-
-        `;
-
-
-        /* =================================================
-           COLLAPSE / EXPAND
-        ================================================= */
-
-        const toggle =
-            card.querySelector(
-                ".students-toggle"
-            );
-
-
-        const studentsList =
-            card.querySelector(
-                ".students-list"
-            );
-
-
-        if (
-            toggle &&
-            studentsList
-        ) {
-
-            toggle.addEventListener(
-                "click",
-                () => {
-
-
-                    const isOpen =
                         studentsList
                             .classList
-                            .contains(
+                            .toggle(
                                 "show"
                             );
 
 
-                    studentsList
-                        .classList
-                        .toggle(
-                            "show"
-                        );
+                        toggle
+                            .classList
+                            .toggle(
+                                "open"
+                            );
 
 
-                    toggle
-                        .classList
-                        .toggle(
-                            "open"
-                        );
+                        const text =
+                            toggle.querySelector(
+                                "span:first-child"
+                            );
 
 
-                    const text =
-                        toggle.querySelector(
-                            "span:first-child"
-                        );
+                        if (
+                            isOpen
+                        ) {
 
+                            text.textContent =
+                                "Show Students";
 
-                    if (isOpen) {
+                        }
 
-                        text.textContent =
-                            "Show Students";
+                        else {
 
-                    }
+                            text.textContent =
+                                "Hide Students";
 
-                    else {
-
-                        text.textContent =
-                            "Hide Students";
+                        }
 
                     }
+                );
 
-                }
+            }
+
+
+            /* =================================================
+               ADD CARD TO GRID
+            ================================================= */
+
+            companyGrid.appendChild(
+                card
             );
 
         }
-
-
-        /* =================================================
-           ADD CARD TO GRID
-        ================================================= */
-
-        companyGrid.appendChild(
-            card
-        );
-
-    });
+    );
 
 }
 
@@ -996,9 +1171,13 @@ function renderCompanies(companies) {
    ESCAPE HTML
 ========================================================= */
 
-function escapeHTML(value) {
+function escapeHTML(
+    value
+) {
 
-    return String(value)
+    return String(
+        value
+    )
 
         .replace(
             /&/g,
