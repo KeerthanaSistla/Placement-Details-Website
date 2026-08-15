@@ -5,7 +5,8 @@
 const SHEET_ID =
     "1gMLik20lPryuWYmKSk9qU_fPxYcMq31zpTjiJzgze7M";
 
-const SHEET_NAME = "IT";
+const SHEET_NAME =
+    "IT";
 
 
 /* =========================================================
@@ -66,7 +67,7 @@ async function loadSheet() {
 
 
         /* =================================================
-           EXTRACT JSON
+           EXTRACT JSON FROM GVIZ RESPONSE
         ================================================= */
 
         const start =
@@ -96,9 +97,15 @@ async function loadSheet() {
             JSON.parse(jsonText);
 
 
-        console.log("Parsed Google data:");
-        console.log(data);
+        console.log(
+            "Parsed Google data:",
+            data
+        );
 
+
+        /* =================================================
+           CHECK DATA
+        ================================================= */
 
         if (
             !data.table ||
@@ -114,7 +121,7 @@ async function loadSheet() {
 
 
         /* =================================================
-           PROCESS DIRECTLY FROM GOOGLE TABLE
+           PROCESS DATA
         ================================================= */
 
         const companies =
@@ -128,7 +135,7 @@ async function loadSheet() {
 
 
         /* =================================================
-           RENDER
+           RENDER CARDS
         ================================================= */
 
         renderCompanies(companies);
@@ -193,17 +200,17 @@ function processSheet(table) {
     const companies = [];
 
 
-    /* =====================================================
-       GOOGLE GVIZ HAS ALREADY USED ROWS 1-3 AS HEADERS
+    /*
+       Google GViz has interpreted the first three
+       rows of the sheet as column information.
 
        Therefore:
 
        columns[0] = Roll Number
        columns[1] = Name
-       columns[2] = Barclays...
-       columns[3] = JPMC...
-       etc.
-    ===================================================== */
+
+       columns[2+] = Companies
+    */
 
 
     for (
@@ -218,10 +225,10 @@ function processSheet(table) {
 
 
         /* =================================================
-           GET LABEL
+           GET COMPANY LABEL
         ================================================= */
 
-        let label =
+        const label =
             String(
                 column.label || ""
             ).trim();
@@ -235,7 +242,7 @@ function processSheet(table) {
 
 
         /*
-           Ignore columns with no company name.
+           Ignore completely empty columns.
         */
 
         if (!label) {
@@ -254,7 +261,7 @@ function processSheet(table) {
 
 
         /* =================================================
-           FIND SELECTED STUDENTS
+           FIND STUDENTS
         ================================================= */
 
         const selectedStudents = [];
@@ -267,35 +274,27 @@ function processSheet(table) {
 
 
             /* ---------------------------------------------
-               Roll Number
+               ROLL NUMBER
             --------------------------------------------- */
-
-            const rollCell =
-                cells[0];
-
 
             const roll =
                 getDisplayValue(
-                    rollCell
+                    cells[0]
                 );
 
 
             /* ---------------------------------------------
-               Name
+               STUDENT NAME
             --------------------------------------------- */
-
-            const nameCell =
-                cells[1];
-
 
             const name =
                 getDisplayValue(
-                    nameCell
+                    cells[1]
                 );
 
 
             /*
-               Skip empty student rows.
+               Ignore empty rows.
             */
 
             if (
@@ -309,7 +308,7 @@ function processSheet(table) {
 
 
             /* ---------------------------------------------
-               Company checkbox
+               COMPANY VALUE
             --------------------------------------------- */
 
             const companyCell =
@@ -322,6 +321,15 @@ function processSheet(table) {
                 );
 
 
+            /*
+               Google checkbox values can be:
+
+               true
+               "TRUE"
+               false
+               "FALSE"
+            */
+
             const selected =
                 value === true ||
                 String(value)
@@ -333,9 +341,11 @@ function processSheet(table) {
 
                 selectedStudents.push({
 
-                    roll: roll,
+                    roll:
+                        roll,
 
-                    name: name
+                    name:
+                        name
 
                 });
 
@@ -346,11 +356,6 @@ function processSheet(table) {
 
         /* =================================================
            COUNT
-
-           Since Google GViz has consumed the Total row,
-           we calculate the count from TRUE values.
-
-           This is equivalent to your Total row.
         ================================================= */
 
         const count =
@@ -404,170 +409,173 @@ function processSheet(table) {
    PARSE COMPANY LABEL
 =========================================================
 
-   Examples from your actual sheet:
+   Examples:
 
-   "Barklays 7.5K 5.5L"
-   "JPMC 80K"
-   "Delloitte 25K"
-   "Hartford 40K"
-   "Coforge 15K 5.5L"
-   "DBS"
-   "UBS (1) 1L 16.5L"
-   "EA"
-   "Loyality Jagurnat 20K"
-   "ValueMomentum 40K 6.5L"
-   "UBS (2)"
-   "Asset Sence"
+   Barklays 7.5K 5.5L
+   JPMC 80K
+   Delloitte 25K
+   Hartford 40K
+   Coforge 15K 5.5L
+   DBS
+   UBS (1) 1L 16.5L
+   EA
+   Loyality Jagurnat 20K
+   ValueMomentum 40K 6.5L
+   UBS (2)
+   Asset Sence
 
 ========================================================= */
 
 function parseCompanyLabel(label) {
 
     let text =
-        label.trim();
+        String(label || "").trim();
 
 
-    /*
-       Split from the END.
+    /* =================================================
+       MONEY PATTERN
 
-       This is important because company names can
-       contain spaces.
+       Supports:
 
-       Example:
+       7.5K
+       80K
+       25K
+       40K
+       15K
+       5.5L
+       1L
+       16.5L
+       6.5L
 
-       ValueMomentum 40K 6.5L
+    ================================================= */
 
-       becomes:
-
-       Company = ValueMomentum
-       Stipend = 40K
-       CTC     = 6.5L
-    */
+    const moneyRegex =
+        /\d+(?:\.\d+)?\s*[KLMklm]/g;
 
 
-    const tokens =
-        text.split(/\s+/);
+    /* =================================================
+       FIND MONEY VALUES
+    ================================================= */
+
+    const matches =
+        text.match(moneyRegex) || [];
 
 
-    let ctc =
-        "—";
+    /* =================================================
+       NORMALIZE VALUES
+    ================================================= */
+
+    const values =
+        matches.map(value => {
+
+            return value
+                .replace(/\s+/g, "")
+                .toUpperCase();
+
+        });
+
+
+    /* =================================================
+       REMOVE MONEY FROM COMPANY NAME
+    ================================================= */
+
+    let companyName =
+        text.replace(
+            moneyRegex,
+            ""
+        );
+
+
+    companyName =
+        companyName
+            .replace(/\s+/g, " ")
+            .trim();
+
+
+    /* =================================================
+       DEFAULT VALUES
+    ================================================= */
 
     let stipend =
         "—";
 
-
-    /* =====================================================
-       FIND MONEY-LIKE VALUES
-    ===================================================== */
-
-    const moneyPattern =
-        /^\d+(?:\.\d+)?[KkLlMm]$/;
+    let ctc =
+        "—";
 
 
-    const moneyIndexes = [];
-
-
-    tokens.forEach(
-        (token, index) => {
-
-            if (
-                moneyPattern.test(token)
-            ) {
-
-                moneyIndexes.push(index);
-
-            }
-
-        }
-    );
-
-
-    /* =====================================================
-       TWO VALUES
-
-       Company + Stipend + CTC
-    ===================================================== */
-
-    if (
-        moneyIndexes.length >= 2
-    ) {
-
-        const ctcIndex =
-            moneyIndexes[moneyIndexes.length - 1];
-
-
-        const stipendIndex =
-            moneyIndexes[moneyIndexes.length - 2];
-
-
-        ctc =
-            tokens[ctcIndex];
-
-
-        stipend =
-            tokens[stipendIndex];
-
-
-        const companyTokens =
-            tokens.slice(
-                0,
-                stipendIndex
-            );
-
-
-        text =
-            companyTokens.join(" ");
-
-    }
-
-
-    /* =====================================================
-       ONE VALUE
-
-       Company + Stipend
-    ===================================================== */
-
-    else if (
-        moneyIndexes.length === 1
-    ) {
-
-        const stipendIndex =
-            moneyIndexes[0];
-
-
-        stipend =
-            tokens[stipendIndex];
-
-
-        const companyTokens =
-            tokens.slice(
-                0,
-                stipendIndex
-            );
-
-
-        text =
-            companyTokens.join(" ");
-
-    }
-
-
-    /* =====================================================
-       NO VALUES
+    /* =================================================
+       ONE MONEY VALUE
 
        Example:
 
-       DBS
-       EA
-       UBS (2)
-       Asset Sence
-    ===================================================== */
+       JPMC 80K
+
+       Company:
+       JPMC
+
+       Stipend:
+       80K
+
+       CTC:
+       —
+    ================================================= */
+
+    if (
+        values.length === 1
+    ) {
+
+        stipend =
+            values[0];
+
+    }
+
+
+    /* =================================================
+       TWO MONEY VALUES
+
+       Example:
+
+       Barklays 7.5K 5.5L
+
+       Company:
+       Barklays
+
+       Stipend:
+       7.5K
+
+       CTC:
+       5.5L
+    ================================================= */
+
+    else if (
+        values.length >= 2
+    ) {
+
+        stipend =
+            values[0];
+
+        ctc =
+            values[1];
+
+    }
+
+
+    console.log(
+        "PARSED COMPANY:",
+        {
+            original: label,
+            name: companyName,
+            stipend: stipend,
+            ctc: ctc
+        }
+    );
 
 
     return {
 
         name:
-            text || "Unknown Company",
+            companyName ||
+            "Unknown Company",
 
         stipend:
             stipend,
@@ -581,7 +589,7 @@ function parseCompanyLabel(label) {
 
 
 /* =========================================================
-   GET CELL VALUE
+   GET RAW CELL VALUE
 ========================================================= */
 
 function getCellValue(cell) {
@@ -622,15 +630,15 @@ function getDisplayValue(cell) {
 
 
     /*
-       For roll numbers, use Google's formatted value.
+       Use Google's formatted value first.
 
-       This is VERY IMPORTANT because the raw value is:
-
-       1.60123737001E11
-
-       while the formatted value is:
+       This prevents:
 
        160123737001
+
+       from becoming:
+
+       1.60123737001E11
     */
 
     if (
@@ -638,7 +646,9 @@ function getDisplayValue(cell) {
         cell.f !== null
     ) {
 
-        return String(cell.f);
+        return String(
+            cell.f
+        );
 
     }
 
@@ -648,7 +658,9 @@ function getDisplayValue(cell) {
         cell.v !== null
     ) {
 
-        return String(cell.v);
+        return String(
+            cell.v
+        );
 
     }
 
@@ -662,14 +674,13 @@ function getDisplayValue(cell) {
    RENDER COMPANY CARDS
 ========================================================= */
 
-/* =========================================================
-   RENDER COMPANY CARDS
-========================================================= */
-
 function renderCompanies(companies) {
 
     const companyGrid =
-        document.getElementById("companyGrid");
+        document.getElementById(
+            "companyGrid"
+        );
+
 
     companyGrid.innerHTML = "";
 
@@ -678,7 +689,9 @@ function renderCompanies(companies) {
        NO COMPANIES
     ===================================================== */
 
-    if (companies.length === 0) {
+    if (
+        companies.length === 0
+    ) {
 
         companyGrid.innerHTML = `
 
@@ -693,33 +706,42 @@ function renderCompanies(companies) {
         `;
 
         return;
+
     }
 
 
     /* =====================================================
-       CREATE COMPANY CARDS
+       CREATE CARDS
     ===================================================== */
 
     companies.forEach(company => {
 
         const card =
-            document.createElement("div");
+            document.createElement(
+                "div"
+            );
 
-        card.className = "company-card";
+
+        card.className =
+            "company-card";
 
 
         /* =================================================
-           STUDENT LIST
+           STUDENT SECTION
         ================================================= */
 
-        let studentSection = "";
+        let studentSection =
+            "";
 
 
-        if (company.students.length > 0) {
+        if (
+            company.students.length > 0
+        ) {
 
             studentSection = `
 
                 <div class="students-section">
+
 
                     <button
                         class="students-toggle"
@@ -743,16 +765,27 @@ function renderCompanies(companies) {
 
                             company.students
                                 .map(
-                                    (student, index) => `
+                                    student => `
 
-                                        <div class="student-row">
+                                        <div
+                                            class="student-row"
+                                        >
 
-                                            <div class="student-roll">
-                                                ${escapeHTML(student.roll)}
+                                            <div
+                                                class="student-roll"
+                                            >
+                                                ${escapeHTML(
+                                                    student.roll
+                                                )}
                                             </div>
 
-                                            <div class="student-name">
-                                                ${escapeHTML(student.name)}
+
+                                            <div
+                                                class="student-name"
+                                            >
+                                                ${escapeHTML(
+                                                    student.name
+                                                )}
                                             </div>
 
                                         </div>
@@ -765,6 +798,7 @@ function renderCompanies(companies) {
 
                     </div>
 
+
                 </div>
 
             `;
@@ -775,9 +809,13 @@ function renderCompanies(companies) {
 
             studentSection = `
 
-                <div class="students-section">
+                <div
+                    class="students-section"
+                >
 
-                    <div class="no-students">
+                    <div
+                        class="no-students"
+                    >
 
                         No students selected
 
@@ -799,7 +837,9 @@ function renderCompanies(companies) {
             <div class="card-header">
 
                 <h2>
-                    ${escapeHTML(company.name)}
+                    ${escapeHTML(
+                        company.name
+                    )}
                 </h2>
 
             </div>
@@ -818,7 +858,9 @@ function renderCompanies(companies) {
                         </div>
 
                         <div class="detail-value">
-                            ${escapeHTML(company.stipend)}
+                            ${escapeHTML(
+                                company.stipend
+                            )}
                         </div>
 
                     </div>
@@ -831,7 +873,9 @@ function renderCompanies(companies) {
                         </div>
 
                         <div class="detail-value">
-                            ${escapeHTML(company.ctc)}
+                            ${escapeHTML(
+                                company.ctc
+                            )}
                         </div>
 
                     </div>
@@ -877,25 +921,36 @@ function renderCompanies(companies) {
             );
 
 
-        if (toggle && studentsList) {
+        if (
+            toggle &&
+            studentsList
+        ) {
 
             toggle.addEventListener(
                 "click",
                 () => {
 
+
                     const isOpen =
-                        studentsList.classList
-                            .contains("show");
+                        studentsList
+                            .classList
+                            .contains(
+                                "show"
+                            );
 
 
-                    studentsList.classList.toggle(
-                        "show"
-                    );
+                    studentsList
+                        .classList
+                        .toggle(
+                            "show"
+                        );
 
 
-                    toggle.classList.toggle(
-                        "open"
-                    );
+                    toggle
+                        .classList
+                        .toggle(
+                            "open"
+                        );
 
 
                     const text =
@@ -924,11 +979,18 @@ function renderCompanies(companies) {
         }
 
 
-        companyGrid.appendChild(card);
+        /* =================================================
+           ADD CARD TO GRID
+        ================================================= */
+
+        companyGrid.appendChild(
+            card
+        );
 
     });
 
 }
+
 
 /* =========================================================
    ESCAPE HTML
