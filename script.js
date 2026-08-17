@@ -43,6 +43,7 @@ const META_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
     `?tqx=out:json&range=C1:Z3&headers=0`;
 
+let allCompanies = [];
 
 /* =========================================================
    LOAD SHEET
@@ -225,35 +226,20 @@ async function loadSheet() {
            unchanged.
         ================================================= */
 
-        const companies =
+        allCompanies =
             processSheet(
                 data.table,
                 metaData.table
             );
 
-
-        console.log(
-            "================================="
-        );
-
         console.log(
             "FINAL COMPANIES:",
-            companies
+            allCompanies
         );
-
-        console.log(
-            "================================="
-        );
-
-
-        /* =================================================
-           RENDER CARDS
-        ================================================= */
 
         renderCompanies(
-            companies
+            allCompanies
         );
-
     }
 
 
@@ -1206,6 +1192,131 @@ function escapeHTML(
 
 }
 
+/* =========================================================
+   COMPANY SEARCH
+========================================================= */
+
+document.addEventListener(
+    "DOMContentLoaded",
+    () => {
+
+        const searchInput =
+            document.getElementById(
+                "companySearch"
+            );
+
+        if (!searchInput) {
+            return;
+        }
+
+        searchInput.addEventListener(
+            "input",
+            () => {
+
+                const searchText =
+                    searchInput.value
+                        .trim()
+                        .toLowerCase();
+
+
+                /* =========================================
+                   EMPTY SEARCH
+                   Show all companies
+                ========================================= */
+
+                if (!searchText) {
+
+                    renderCompanies(
+                        allCompanies
+                    );
+
+                    return;
+                }
+
+
+                /* =========================================
+                   SUBSTRING SEARCH
+
+                   Examples:
+
+                   "bar"   → Barklays
+                   "ubs"   → UBS (1), UBS (2)
+                   "value" → ValueMomentum
+                   "hart"  → Hartford
+                ========================================= */
+
+                const filteredCompanies =
+                    allCompanies.filter(
+                        company => {
+
+                            const companyName =
+                                String(
+                                    company.name || ""
+                                ).toLowerCase();
+
+                            return companyName.includes(
+                                searchText
+                            );
+
+                        }
+                    );
+
+
+                console.log(
+                    "Company search:",
+                    searchText
+                );
+
+                console.log(
+                    "Matching companies:",
+                    filteredCompanies
+                );
+
+
+                /* =========================================
+                   NO MATCHES
+                ========================================= */
+
+                if (
+                    filteredCompanies.length === 0
+                ) {
+
+                    document.getElementById(
+                        "companyGrid"
+                    ).innerHTML = `
+
+                        <div class="no-data">
+
+                            <h3>
+                                No companies found
+                            </h3>
+
+                            <p>
+                                No company matches
+                                "${escapeHTML(searchInput.value)}"
+                            </p>
+
+                        </div>
+
+                    `;
+
+                    return;
+                }
+
+
+                /* =========================================
+                   RENDER FILTERED COMPANIES
+                ========================================= */
+
+                renderCompanies(
+                    filteredCompanies
+                );
+
+            }
+        );
+
+    }
+);
 
 /* =========================================================
    START APPLICATION

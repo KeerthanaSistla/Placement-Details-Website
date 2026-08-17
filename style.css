@@ -410,6 +410,52 @@ header p {
 
 }
 
+/* =========================================================
+   COMPANY SEARCH
+========================================================= */
+
+.search-container {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto 25px;
+    box-sizing: border-box;
+}
+
+#companySearch {
+    width: 100%;
+    padding: 14px 18px;
+
+    font-size: 16px;
+    font-family: inherit;
+
+    border: 2px solid #432d66;
+    border-radius: 12px;
+
+    outline: none;
+
+    box-sizing: border-box;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+}
+
+#companySearch:focus {
+    border-color: #6b4a91;
+
+    box-shadow:
+        0 0 0 3px rgba(
+            107,
+            74,
+            145,
+            0.12
+        );
+}
+
+#companySearch::placeholder {
+    color: #999;
+}
+
 /* =========================
    MOBILE
 ========================= */
