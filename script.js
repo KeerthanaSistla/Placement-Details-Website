@@ -30,8 +30,9 @@ const SHEET_URL =
    Your sheet is:
 
    Row 1 → Company
-   Row 2 → Stipend
-   Row 3 → CTC
+   Row 2 → Role
+   Row 3 → Stipend
+   Row 4 → CTC
 
    C = first company column
    Z = maximum supported column
@@ -438,7 +439,7 @@ function processSheet(
 
         const stipend =
             getDisplayValue(
-                metaRows[1]?.c?.[
+                metaRows[2]?.c?.[
                     metaColumnIndex
                 ]
             ).trim();
@@ -450,7 +451,7 @@ function processSheet(
 
         const ctc =
             getDisplayValue(
-                metaRows[2]?.c?.[
+                metaRows[3]?.c?.[
                     metaColumnIndex
                 ]
             ).trim();
