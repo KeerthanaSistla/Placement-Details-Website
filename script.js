@@ -42,7 +42,7 @@ const SHEET_URL =
 
 const META_URL =
     `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
-    `?tqx=out:json&range=C1:Z3&headers=0`;
+    `?tqx=out:json&range=C1:Z4&headers=0`;
 
 let allCompanies = [];
 
@@ -151,8 +151,9 @@ async function loadSheet() {
            C1:Z3
 
            Row 1 → Company
-           Row 2 → Stipend
-           Row 3 → CTC
+           Row 2 → Role
+           Row 3 → Stipend
+           Row 4 → CTC
         ================================================= */
 
         console.log(
@@ -354,8 +355,8 @@ function processSheet(
        metaTable is C1:Z3.
 
        metaRows[0] → Row 1 → company names
-       metaRows[1] → Row 2 → stipend
-       metaRows[2] → Row 3 → CTC
+       metaRows[2] → Row 2 → stipend
+       metaRows[3] → Row 3 → CTC
     ===================================================== */
 
     const metaRows =
@@ -409,8 +410,8 @@ function processSheet(
            Metadata range starts at C:
 
                metadata 0 = C
-               metadata 1 = D
-               metadata 2 = E
+               metadata 2 = D
+               metadata 3 = E
 
            Therefore:
 
