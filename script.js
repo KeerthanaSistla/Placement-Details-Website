@@ -626,36 +626,51 @@ function processSheet(
         );
 
 
-        /* =================================================
-           COUNT
-        ================================================= */
+        /* =====================================================
+        COUNT
+        ===================================================== */
 
-        const count =
-            selectedStudents.length;
+        const count = selectedStudents.length;
 
 
-        /* =================================================
-           CREATE COMPANY OBJECT
-        ================================================= */
+        /* =====================================================
+        IGNORE COMPANIES WITH ZERO STUDENTS
+        ===================================================== */
+
+        if (count === 0) {
+            console.log(
+                "Skipping company with 0 students:",
+                finalCompanyName
+            );
+
+            continue;
+        }
+
+
+        /* =====================================================
+        CREATE COMPANY OBJECT
+        ===================================================== */
 
         const company = {
 
-            name:
-                finalCompanyName,
+            name: finalCompanyName,
 
-            stipend:
-                stipend || "—",
+            stipend: stipend || "—",
 
-            ctc:
-                ctc || "—",
+            ctc: ctc || "—",
 
-            count:
-                count,
+            count: count,
 
-            students:
-                selectedStudents
+            students: selectedStudents
 
         };
+
+
+        /* =====================================================
+        ADD COMPANY
+        ===================================================== */
+
+        companies.push(company);
 
 
         /* =================================================
