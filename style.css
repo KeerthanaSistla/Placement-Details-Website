@@ -1,130 +1,322 @@
+/* =========================================================
+   RESET
+========================================================= */
+
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+
+/* =========================================================
+   BODY
+========================================================= */
+
 body {
-    font-family: Arial, Helvetica, sans-serif;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
     background: #f5f3f8;
+
     color: #333;
+
     min-height: 100vh;
+
 }
 
 
-/* =========================
+/* =========================================================
    HEADER
-========================= */
+========================================================= */
 
 header {
+
     background: #5e3f8f;
+
     color: white;
+
     text-align: center;
+
     padding: 30px 20px;
+
 }
+
 
 header h1 {
+
     font-size: 32px;
+
     margin-bottom: 8px;
+
 }
+
 
 header p {
+
     font-size: 16px;
+
     opacity: 0.9;
+
 }
 
 
-/* =========================
+/* =========================================================
    MAIN CONTAINER
-========================= */
+========================================================= */
 
 .container {
+
     width: 90%;
+
     max-width: 1200px;
+
     margin: 40px auto;
+
 }
 
 
-/* =========================
-   COMPANY GRID
-========================= */
+/* =========================================================
+   DASHBOARD SUMMARY
+========================================================= */
 
-.company-grid {
+.dashboard-summary {
+
     display: grid;
 
-    /* 3 cards in one row on laptop */
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns:
+        repeat(4, 1fr);
 
-    gap: 25px;
+    gap: 20px;
+
+    margin-bottom: 30px;
+
 }
 
 
-/* =========================
+.summary-card {
+
+    background: white;
+
+    padding: 20px;
+
+    border-radius: 15px;
+
+    box-shadow:
+        0 4px 15px
+        rgba(0, 0, 0, 0.08);
+
+    text-align: center;
+
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+
+}
+
+
+.summary-card:hover {
+
+    transform: translateY(-3px);
+
+    box-shadow:
+        0 7px 20px
+        rgba(0, 0, 0, 0.11);
+
+}
+
+
+.summary-label {
+
+    font-size: 14px;
+
+    color: #777;
+
+    margin-bottom: 8px;
+
+}
+
+
+.summary-value {
+
+    font-size: 28px;
+
+    font-weight: bold;
+
+    color: #5e3f8f;
+
+}
+
+
+/* =========================================================
+   SEARCH
+========================================================= */
+
+.search-container {
+
+    width: 100%;
+
+    max-width: 600px;
+
+    margin: 0 auto 25px;
+
+}
+
+
+#companySearch {
+
+    width: 100%;
+
+    padding: 14px 18px;
+
+    font-size: 16px;
+
+    font-family: inherit;
+
+    border: 2px solid #432d66;
+
+    border-radius: 12px;
+
+    outline: none;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+}
+
+
+#companySearch:focus {
+
+    border-color: #6b4a91;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(
+            107,
+            74,
+            145,
+            0.12
+        );
+
+}
+
+
+#companySearch::placeholder {
+
+    color: #999;
+
+}
+
+
+/* =========================================================
+   COMPANY GRID
+========================================================= */
+
+.company-grid {
+
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 25px;
+
+}
+
+
+/* =========================================================
    COMPANY CARD
-========================= */
+========================================================= */
 
 .company-card {
+
     background: white;
 
     border-radius: 15px;
 
-    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.08);
+    box-shadow:
+        0 4px 15px
+        rgba(0, 0, 0, 0.08);
 
     overflow: hidden;
 
-    transition: transform 0.2s ease,
-                box-shadow 0.2s ease;
+    transition:
+        transform 0.2s ease,
+        box-shadow 0.2s ease;
+
 }
+
 
 .company-card:hover {
+
     transform: translateY(-5px);
 
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.13);
+    box-shadow:
+        0 8px 25px
+        rgba(0, 0, 0, 0.13);
+
 }
 
 
-/* =========================
+/* =========================================================
    CARD HEADER
-========================= */
+========================================================= */
 
 .card-header {
+
     background: #5e3f8f;
+
     color: white;
 
     padding: 20px;
 
     text-align: center;
+
 }
+
 
 .card-header h2 {
+
     font-size: 24px;
+
 }
 
 
-/* =========================
+/* =========================================================
    CARD BODY
-========================= */
+========================================================= */
 
 .card-body {
+
     padding: 22px;
+
 }
 
 
-/* =========================
+/* =========================================================
    DETAILS
-========================= */
+========================================================= */
 
 .details {
+
     display: grid;
 
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns:
+        1fr 1fr;
 
     gap: 12px;
 
     margin-bottom: 20px;
+
 }
 
+
 .detail-box {
+
     background: #f5f3f8;
 
     padding: 15px;
@@ -132,30 +324,38 @@ header p {
     border-radius: 10px;
 
     text-align: center;
+
 }
 
+
 .detail-title {
+
     font-size: 13px;
 
     color: #777;
 
     margin-bottom: 5px;
+
 }
 
+
 .detail-value {
+
     font-size: 20px;
 
     font-weight: bold;
 
     color: #5e3f8f;
+
 }
 
 
-/* =========================
+/* =========================================================
    COUNT
-========================= */
+========================================================= */
 
 .count-box {
+
     background: #5e3f8f;
 
     color: white;
@@ -167,90 +367,43 @@ header p {
     text-align: center;
 
     margin-bottom: 20px;
+
 }
 
+
 .count-label {
+
     font-size: 13px;
 
     opacity: 0.9;
 
     margin-bottom: 4px;
+
 }
 
+
 .count-value {
+
     font-size: 28px;
 
     font-weight: bold;
+
 }
 
-
-/* =========================
-   STUDENT DROPDOWN
-========================= */
-
-.dropdown-container {
-    margin-top: 5px;
-}
-
-.dropdown-container label {
-    display: block;
-
-    font-size: 14px;
-
-    font-weight: bold;
-
-    margin-bottom: 8px;
-
-    color: #444;
-}
-
-.student-select {
-    width: 100%;
-
-    padding: 12px 14px;
-
-    border: 1px solid #ccc;
-
-    border-radius: 8px;
-
-    background: white;
-
-    font-size: 14px;
-
-    cursor: pointer;
-
-    outline: none;
-}
-
-.student-select:focus {
-    border-color: #5e3f8f;
-
-    box-shadow: 0 0 0 2px rgba(94, 63, 143, 0.15);
-}
-
-
-/* =========================
-   NO STUDENTS
-========================= */
-
-.no-students {
-    text-align: center;
-
-    color: #888;
-
-    font-size: 14px;
-
-    padding: 10px 0;
-}
 
 /* =========================================================
    STUDENTS SECTION
 ========================================================= */
 
 .students-section {
+
     margin-top: 20px;
-    border-top: 1px solid #e5e5e5;
+
+    border-top:
+        1px solid #e5e5e5;
+
     padding-top: 15px;
+
 }
 
 
@@ -264,7 +417,8 @@ header p {
 
     display: flex;
 
-    justify-content: space-between;
+    justify-content:
+        space-between;
 
     align-items: center;
 
@@ -288,7 +442,9 @@ header p {
 
 
 .students-toggle:hover {
+
     color: #432d66;
+
 }
 
 
@@ -305,8 +461,6 @@ header p {
 
 }
 
-
-/* Rotate arrow when open */
 
 .students-toggle.open .arrow {
 
@@ -334,8 +488,6 @@ header p {
 
 }
 
-
-/* Open */
 
 .students-list.show {
 
@@ -373,7 +525,9 @@ header p {
 }
 
 
-/* Roll number */
+/* =========================================================
+   ROLL NUMBER
+========================================================= */
 
 .student-roll {
 
@@ -386,13 +540,16 @@ header p {
 }
 
 
-/* Name */
+/* =========================================================
+   NAME
+========================================================= */
 
 .student-name {
 
     color: #555;
 
 }
+
 
 /* =========================================================
    NO STUDENTS
@@ -410,90 +567,203 @@ header p {
 
 }
 
+
 /* =========================================================
-   COMPANY SEARCH
+   NO DATA
 ========================================================= */
 
-.search-container {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto 25px;
-    box-sizing: border-box;
-}
+.no-data {
 
-#companySearch {
-    width: 100%;
-    padding: 14px 18px;
+    grid-column:
+        1 / -1;
 
-    font-size: 16px;
-    font-family: inherit;
+    background: white;
 
-    border: 2px solid #432d66;
-    border-radius: 12px;
+    border-radius: 15px;
 
-    outline: none;
+    padding: 40px;
 
-    box-sizing: border-box;
-
-    transition:
-        border-color 0.2s ease,
-        box-shadow 0.2s ease;
-}
-
-#companySearch:focus {
-    border-color: #6b4a91;
+    text-align: center;
 
     box-shadow:
-        0 0 0 3px rgba(
-            107,
-            74,
-            145,
-            0.12
-        );
+        0 4px 15px
+        rgba(0, 0, 0, 0.08);
+
 }
 
-#companySearch::placeholder {
-    color: #999;
+
+.no-data h3 {
+
+    color: #5e3f8f;
+
+    margin-bottom: 8px;
+
 }
 
-/* =========================
-   MOBILE
-========================= */
+
+.no-data p {
+
+    color: #888;
+
+}
+
+
+/* =========================================================
+   LOADING
+========================================================= */
+
+.loading {
+
+    grid-column:
+        1 / -1;
+
+    text-align: center;
+
+    padding: 50px;
+
+    color: #777;
+
+}
+
+
+/* =========================================================
+   ERROR
+========================================================= */
+
+.error {
+
+    grid-column:
+        1 / -1;
+
+    background: white;
+
+    padding: 30px;
+
+    border-radius: 15px;
+
+    text-align: center;
+
+}
+
+
+.error h3 {
+
+    color: #c0392b;
+
+    margin-bottom: 10px;
+
+}
+
+
+/* =========================================================
+   MOBILE / TABLET
+========================================================= */
 
 @media (max-width: 900px) {
 
     .company-grid {
-        grid-template-columns: repeat(2, 1fr);
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
+    }
+
+
+    .dashboard-summary {
+
+        grid-template-columns:
+            repeat(2, 1fr);
+
     }
 
 }
 
 
+/* =========================================================
+   MOBILE
+========================================================= */
+
 @media (max-width: 600px) {
 
     header {
+
         padding: 25px 15px;
+
     }
+
 
     header h1 {
+
         font-size: 26px;
+
     }
 
+
     .container {
+
         width: 92%;
 
         margin: 25px auto;
+
     }
 
-    /* One card per row on phone */
+
     .company-grid {
+
         grid-template-columns: 1fr;
 
         gap: 18px;
+
     }
 
+
+    .dashboard-summary {
+
+        grid-template-columns: 1fr;
+
+        gap: 12px;
+
+        margin-bottom: 20px;
+
+    }
+
+
+    .summary-card {
+
+        padding: 16px;
+
+    }
+
+
+    .summary-value {
+
+        font-size: 24px;
+
+    }
+
+
     .card-header h2 {
+
         font-size: 22px;
+
+    }
+
+
+    .student-row {
+
+        flex-direction: column;
+
+        align-items: flex-start;
+
+        gap: 4px;
+
+    }
+
+
+    .student-roll {
+
+        min-width: auto;
+
     }
 
 }

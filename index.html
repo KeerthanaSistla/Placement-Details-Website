@@ -1,40 +1,166 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
+
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
 
     <title>Placement Dashboard</title>
 
-    <link rel="stylesheet" href="style.css">
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+
 </head>
+
 
 <body>
 
+
+    <!-- =====================================================
+         HEADER
+    ====================================================== -->
+
     <header>
-        <h1>IT27 Placement Dashboard</h1>
-        <p>Company-wise placement details</p>
+
+        <h1>
+            IT27 Placement Dashboard
+        </h1>
+
+        <p>
+            Company-wise placement details
+        </p>
+
     </header>
 
 
+
+    <!-- =====================================================
+         MAIN
+    ====================================================== -->
+
     <main class="container">
+
+
+        <!-- =================================================
+             DASHBOARD SUMMARY
+        ================================================== -->
+
+        <div
+            class="dashboard-summary"
+            id="dashboardSummary"
+        >
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Companies
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="totalCompanies"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Students Placed
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="totalStudents"
+                >
+                    0
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Highest CTC
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="highestCTC"
+                >
+                    —
+                </div>
+
+            </div>
+
+
+            <div class="summary-card">
+
+                <div class="summary-label">
+                    Highest Stipend
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="highestStipend"
+                >
+                    —
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- =================================================
+             SEARCH
+        ================================================== -->
+
         <div class="search-container">
+
             <input
                 type="text"
                 id="companySearch"
                 placeholder="Search company, student name or roll number..."
                 autocomplete="off"
             >
+
         </div>
 
-        <div class="company-grid" id="companyGrid">
-            <!-- Company cards will be generated here -->
+
+
+        <!-- =================================================
+             COMPANY GRID
+        ================================================== -->
+
+        <div
+            class="company-grid"
+            id="companyGrid"
+        >
+
+            <!-- Company cards generated here -->
+
         </div>
+
 
     </main>
+
 
 
     <script src="script.js"></script>
 
 </body>
+
 </html>
