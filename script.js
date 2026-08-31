@@ -1199,7 +1199,7 @@ function escapeHTML(
 }
 
 /* =========================================================
-   COMPANY SEARCH
+   COMPANY / STUDENT SEARCH
 ========================================================= */
 
 document.addEventListener(
@@ -1241,35 +1241,113 @@ document.addEventListener(
 
 
                 /* =========================================
-                   SUBSTRING SEARCH
+                   SEARCH COMPANY / STUDENT / ROLL NUMBER
 
                    Examples:
 
-                   "bar"   → Barklays
-                   "ubs"   → UBS (1), UBS (2)
-                   "value" → ValueMomentum
-                   "hart"  → Hartford
+                   "bar"       → Barclays
+                   "ubs"       → UBS
+                   "keerthana" → companies where Keerthana
+                                  is placed
+                   "160123"    → companies containing
+                                  that roll number
                 ========================================= */
 
                 const filteredCompanies =
-                    allCompanies.filter(
-                        company => {
+                    allCompanies
+                        .map(company => {
 
                             const companyName =
                                 String(
                                     company.name || ""
                                 ).toLowerCase();
 
-                            return companyName.includes(
-                                searchText
-                            );
 
-                        }
-                    );
+                            /* =================================
+                               COMPANY MATCH
+                            ================================= */
+
+                            const companyMatches =
+                                companyName.includes(
+                                    searchText
+                                );
+
+
+                            /* =================================
+                               STUDENT MATCH
+                            ================================= */
+
+                            const matchingStudents =
+                                company.students.filter(
+                                    student => {
+
+                                        const studentName =
+                                            String(
+                                                student.name || ""
+                                            ).toLowerCase();
+
+
+                                        const studentRoll =
+                                            String(
+                                                student.roll || ""
+                                            ).toLowerCase();
+
+
+                                        return (
+                                            studentName.includes(
+                                                searchText
+                                            ) ||
+                                            studentRoll.includes(
+                                                searchText
+                                            )
+                                        );
+
+                                    }
+                                );
+
+
+                            /* =================================
+                               RETURN COMPANY
+
+                               If company name matches:
+                               → show all students
+
+                               If student/roll matches:
+                               → show only matching students
+                            ================================= */
+
+                            if (companyMatches) {
+
+                                return company;
+
+                            }
+
+
+                            if (
+                                matchingStudents.length > 0
+                            ) {
+
+                                return {
+                                    ...company,
+                                    students:
+                                        matchingStudents,
+                                    count:
+                                        matchingStudents.length
+                                };
+
+                            }
+
+
+                            return null;
+
+                        })
+                        .filter(
+                            company => company !== null
+                        );
 
 
                 console.log(
-                    "Company search:",
+                    "Search:",
                     searchText
                 );
 
@@ -1294,12 +1372,15 @@ document.addEventListener(
                         <div class="no-data">
 
                             <h3>
-                                No companies found
+                                No results found
                             </h3>
 
                             <p>
-                                No company matches
-                                "${escapeHTML(searchInput.value)}"
+                                No company, student or roll number
+                                matches
+                                "${escapeHTML(
+                                    searchInput.value
+                                )}"
                             </p>
 
                         </div>
@@ -1311,7 +1392,7 @@ document.addEventListener(
 
 
                 /* =========================================
-                   RENDER FILTERED COMPANIES
+                   RENDER RESULTS
                 ========================================= */
 
                 renderCompanies(
