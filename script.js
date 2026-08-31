@@ -683,17 +683,6 @@ function processSheet(
         );
 
 
-        /* =================================================
-           ADD COMPANY
-        ================================================= */
-
-        companies.push(
-            company
-        );
-
-    }
-
-
     return companies;
 
 }
