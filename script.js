@@ -234,14 +234,152 @@ async function loadSheet() {
                 metaData.table
             );
 
-        console.log(
-            "FINAL COMPANIES:",
-            allCompanies
-        );
+        /* =========================================================
+        SORT COMPANIES
+        1. CTC — highest first
+        2. Stipend — highest first
+        3. No CTC / stipend — last
+        ========================================================= */
+
+        allCompanies.sort((a, b) => {
+
+            const parseAmount = value => {
+
+                if (
+                    !value ||
+                    value === "—"
+                ) {
+                    return null;
+                }
+
+                const cleaned =
+                    String(value)
+                        .replace(/,/g, "")
+                        .replace(/[₹$]/g, "")
+                        .replace(/\s/g, "")
+                        .toLowerCase();
+
+                const match =
+                    cleaned.match(
+                        /([\d.]+)\s*(lpa|lakh|lakhs|k)?/
+                    );
+
+                if (!match) {
+                    return null;
+                }
+
+                let amount =
+                    parseFloat(match[1]);
+
+                const unit =
+                    match[2];
+
+                if (
+                    unit === "lpa" ||
+                    unit === "lakh" ||
+                    unit === "lakhs"
+                ) {
+                    amount *= 100000;
+                }
+                else if (unit === "k") {
+                    amount *= 1000;
+                }
+
+                return amount;
+            };
+
+
+            const ctcA =
+                parseAmount(a.ctc);
+
+            const ctcB =
+                parseAmount(b.ctc);
+
+            const stipendA =
+                parseAmount(a.stipend);
+
+            const stipendB =
+                parseAmount(b.stipend);
+
+
+            /* =========================================
+            BOTH HAVE CTC
+            ========================================= */
+
+            if (
+                ctcA !== null &&
+                ctcB !== null
+            ) {
+                return ctcB - ctcA;
+            }
+
+
+            /* =========================================
+            ONLY A HAS CTC
+            ========================================= */
+
+            if (
+                ctcA !== null &&
+                ctcB === null
+            ) {
+                return -1;
+            }
+
+
+            /* =========================================
+            ONLY B HAS CTC
+            ========================================= */
+
+            if (
+                ctcA === null &&
+                ctcB !== null
+            ) {
+                return 1;
+            }
+
+
+            /* =========================================
+            NEITHER HAS CTC
+            → SORT BY STIPEND
+            ========================================= */
+
+            if (
+                stipendA !== null &&
+                stipendB !== null
+            ) {
+                return stipendB - stipendA;
+            }
+
+
+            if (
+                stipendA !== null &&
+                stipendB === null
+            ) {
+                return -1;
+            }
+
+
+            if (
+                stipendA === null &&
+                stipendB !== null
+            ) {
+                return 1;
+            }
+
+
+            /* =========================================
+            NEITHER HAS CTC OR STIPEND
+            ========================================= */
+
+            return 0;
+
+        });
+
 
         renderCompanies(
             allCompanies
         );
+        
     }
 
 
