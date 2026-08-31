@@ -681,8 +681,8 @@ function processSheet(
             "COMPANY DATA:",
             company
         );
-
-
+      );
+    }
     return companies;
 
 }
