@@ -825,9 +825,21 @@ function parseAmount(
 /* =========================================================
    SORT COMPANIES
 
-   1. CTC available → highest first
-   2. No CTC → stipend available → highest first
-   3. Neither → last
+   1. CTC — highest first
+   2. If CTC is same → Stipend — highest first
+   3. "-" / missing values are treated as 0
+
+   Examples:
+
+   CTC 13L, Stipend 60K
+   CTC 13L, Stipend 40K
+   CTC 11L, Stipend 40K
+   CTC 9L,  Stipend 24K
+   CTC 9L,  Stipend 20K
+   CTC 9L,  Stipend -
+   CTC -,   Stipend 50K
+   CTC -,   Stipend 20K
+   CTC -,   Stipend -
 ========================================================= */
 
 function compareCompanies(
@@ -835,94 +847,56 @@ function compareCompanies(
     b
 ) {
 
+    /* -----------------------------------------------------
+       CTC
+
+       Missing / "-" = 0
+    ----------------------------------------------------- */
+
     const ctcA =
-        parseAmount(a.ctc);
+        parseAmount(a.ctc) ?? 0;
 
     const ctcB =
-        parseAmount(b.ctc);
+        parseAmount(b.ctc) ?? 0;
 
 
-    const stipendA =
-        parseAmount(a.stipend);
+    /* -----------------------------------------------------
+       PRIMARY SORT:
+       CTC — highest first
+    ----------------------------------------------------- */
 
-    const stipendB =
-        parseAmount(b.stipend);
-
-
-    /* Both have CTC */
-
-    if (
-        ctcA !== null &&
-        ctcB !== null
-    ) {
+    if (ctcA !== ctcB) {
 
         return ctcB - ctcA;
 
     }
 
 
-    /* Only A has CTC */
+    /* -----------------------------------------------------
+       SECONDARY SORT:
+       Stipend — highest first
 
-    if (
-        ctcA !== null &&
-        ctcB === null
-    ) {
+       Missing / "-" = 0
+    ----------------------------------------------------- */
 
-        return -1;
+    const stipendA =
+        parseAmount(a.stipend) ?? 0;
 
-    }
-
-
-    /* Only B has CTC */
-
-    if (
-        ctcA === null &&
-        ctcB !== null
-    ) {
-
-        return 1;
-
-    }
+    const stipendB =
+        parseAmount(b.stipend) ?? 0;
 
 
-    /* Neither has CTC.
-       Compare stipend. */
-
-    if (
-        stipendA !== null &&
-        stipendB !== null
-    ) {
+    if (stipendA !== stipendB) {
 
         return stipendB - stipendA;
 
     }
 
 
-    /* Only A has stipend */
-
-    if (
-        stipendA !== null &&
-        stipendB === null
-    ) {
-
-        return -1;
-
-    }
-
-
-    /* Only B has stipend */
-
-    if (
-        stipendA === null &&
-        stipendB !== null
-    ) {
-
-        return 1;
-
-    }
-
-
-    /* Neither has either */
+    /* -----------------------------------------------------
+       Same CTC and same stipend
+       Keep original order
+    ----------------------------------------------------- */
 
     return 0;
 
