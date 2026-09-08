@@ -823,6 +823,35 @@ function parseAmount(
 
 
 /* =========================================================
+   FORMAT AMOUNT
+========================================================= */
+
+function formatAmount(amount) {
+
+    if (amount >= 100000) {
+
+        const lakhs =
+            amount / 100000;
+
+        return `${lakhs.toFixed(2)} LPA`;
+
+    }
+
+    if (amount >= 1000) {
+
+        const thousands =
+            amount / 1000;
+
+        return `${thousands.toFixed(2)}K`;
+
+    }
+
+    return amount.toFixed(2);
+
+}
+
+
+/* =========================================================
    SORT COMPANIES
 
    1. CTC — highest first
@@ -990,14 +1019,23 @@ function updateDashboardSummary(
 
 
     /* =========================================
-       HIGHEST STIPEND
+    AVERAGE CTC
+
+    Only companies with a valid CTC
+    are included in the calculation.
     ========================================= */
 
-    const highestStipend =
-        getHighestAmount(
-            companies,
-            "stipend"
-        );
+    const ctcValues = companies
+        .map(company => parseAmount(company.ctc))
+        .filter(amount => amount !== null);
+
+    const averageCTC =
+        ctcValues.length > 0
+            ? ctcValues.reduce(
+                (sum, amount) => sum + amount,
+                0
+            ) / ctcValues.length
+            : null;
 
 
     /* =========================================
@@ -1023,9 +1061,11 @@ function updateDashboardSummary(
 
 
     document.getElementById(
-        "highestStipend"
+        "averageCTC"
     ).textContent =
-        highestStipend || "—";
+        averageCTC !== null
+            ? formatAmount(averageCTC)
+            : "—";
 
 }
 
