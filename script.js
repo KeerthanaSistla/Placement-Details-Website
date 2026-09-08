@@ -578,7 +578,7 @@ function processSheet(
                     String(value)
                         .trim()
                         .toLowerCase() ===
-                        "true";
+                    "true";
 
 
                 if (
@@ -808,6 +808,7 @@ function parseAmount(
         amount *= 100000;
 
     }
+
     else if (
         unit === "k"
     ) {
@@ -823,28 +824,47 @@ function parseAmount(
 
 
 /* =========================================================
-   FORMAT AMOUNT
+   FORMAT NUMERIC AMOUNT
 ========================================================= */
 
-function formatAmount(amount) {
+function formatAmount(
+    amount
+) {
 
-    if (amount >= 100000) {
+    if (
+        amount === null ||
+        amount === undefined ||
+        Number.isNaN(amount)
+    ) {
 
-        const lakhs =
-            amount / 100000;
+        return "—";
 
-        return `${lakhs.toFixed(2)} LPA`;
+    }
+
+
+    if (
+        amount >= 100000
+    ) {
+
+        return (
+            (amount / 100000).toFixed(2) +
+            " LPA"
+        );
 
     }
 
-    if (amount >= 1000) {
 
-        const thousands =
-            amount / 1000;
+    if (
+        amount >= 1000
+    ) {
 
-        return `${thousands.toFixed(2)}K`;
+        return (
+            (amount / 1000).toFixed(2) +
+            "K"
+        );
 
     }
+
 
     return amount.toFixed(2);
 
@@ -885,6 +905,7 @@ function compareCompanies(
     const ctcA =
         parseAmount(a.ctc) ?? 0;
 
+
     const ctcB =
         parseAmount(b.ctc) ?? 0;
 
@@ -910,6 +931,7 @@ function compareCompanies(
 
     const stipendA =
         parseAmount(a.stipend) ?? 0;
+
 
     const stipendB =
         parseAmount(b.stipend) ?? 0;
@@ -1019,22 +1041,76 @@ function updateDashboardSummary(
 
 
     /* =========================================
-    AVERAGE CTC
+       STUDENT-WEIGHTED AVERAGE CTC
 
-    Only companies with a valid CTC
-    are included in the calculation.
+       Example:
+
+       Company A:
+       CTC = 10 LPA
+       Students = 2
+
+       Company B:
+       CTC = 20 LPA
+       Students = 8
+
+       Average =
+       ((10 × 2) + (20 × 8))
+       ---------------------
+               10
+
+       = 18 LPA
+
+       Companies without CTC are excluded.
     ========================================= */
 
-    const ctcValues = companies
-        .map(company => parseAmount(company.ctc))
-        .filter(amount => amount !== null);
+    let totalCTCValue = 0;
+
+    let totalCTCStudents = 0;
+
+
+    companies.forEach(
+        company => {
+
+            const ctc =
+                parseAmount(
+                    company.ctc
+                );
+
+
+            /*
+               Ignore companies that
+               do not have a valid CTC.
+            */
+
+            if (
+                ctc === null ||
+                !company.count
+            ) {
+
+                return;
+
+            }
+
+
+            /*
+               Weight the CTC by the
+               number of students placed.
+            */
+
+            totalCTCValue +=
+                ctc * company.count;
+
+
+            totalCTCStudents +=
+                company.count;
+
+        }
+    );
+
 
     const averageCTC =
-        ctcValues.length > 0
-            ? ctcValues.reduce(
-                (sum, amount) => sum + amount,
-                0
-            ) / ctcValues.length
+        totalCTCStudents > 0
+            ? totalCTCValue / totalCTCStudents
             : null;
 
 
@@ -1064,7 +1140,9 @@ function updateDashboardSummary(
         "averageCTC"
     ).textContent =
         averageCTC !== null
-            ? formatAmount(averageCTC)
+            ? formatAmount(
+                averageCTC
+            )
             : "—";
 
 }
@@ -1769,7 +1847,9 @@ document.addEventListener(
                         "companyGrid"
                     ).innerHTML = `
 
-                        <div class="no-data">
+                        <div
+                            class="no-data"
+                        >
 
                             <h3>
                                 No results found
