@@ -150,23 +150,30 @@ header p {
 
 }
 
-
 /* =========================================================
-   SEARCH
+   SEARCH + SECTION FILTER
 ========================================================= */
 
 .search-container {
 
     width: 100%;
 
-    max-width: 600px;
+    max-width: 800px;
 
     margin: 0 auto 25px;
+
+    display: flex;
+
+    gap: 12px;
+
+    align-items: center;
 
 }
 
 
 #companySearch {
+
+    flex: 1;
 
     width: 100%;
 
@@ -208,6 +215,88 @@ header p {
 #companySearch::placeholder {
 
     color: #999;
+
+}
+
+
+/* =========================================================
+   SECTION FILTER
+========================================================= */
+
+#sectionFilter {
+
+    min-width: 170px;
+
+    padding: 14px 15px;
+
+    font-size: 15px;
+
+    font-family: inherit;
+
+    border: 2px solid #432d66;
+
+    border-radius: 12px;
+
+    background: white;
+
+    color: #333;
+
+    outline: none;
+
+    cursor: pointer;
+
+    transition:
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+}
+
+
+#sectionFilter:focus {
+
+    border-color: #6b4a91;
+
+    box-shadow:
+        0 0 0 3px
+        rgba(
+            107,
+            74,
+            145,
+            0.12
+        );
+
+}
+
+
+/* =========================================================
+   MOBILE SEARCH
+========================================================= */
+
+@media (max-width: 600px) {
+
+    .search-container {
+
+        flex-direction: column;
+
+        max-width: 100%;
+
+    }
+
+
+    #companySearch {
+
+        width: 100%;
+
+    }
+
+
+    #sectionFilter {
+
+        width: 100%;
+
+        min-width: 0;
+
+    }
 
 }
 
@@ -767,3 +856,4 @@ header p {
     }
 
 }
+
