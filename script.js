@@ -5,34 +5,67 @@
 const SHEET_ID =
     "1gMLik20lPryuWYmKSk9qU_fPxYcMq31zpTjiJzgze7M";
 
-const SHEET_NAME =
-    "IT";
+
+/* =========================================================
+   CURRENT SHEET
+=========================================================
+
+   All Sections → IT
+   IT 1         → IT1
+   IT 2         → IT2
+   IT 3         → IT3
+========================================================= */
+
+let SHEET_NAME = "IT";
 
 
 /* =========================================================
    MAIN GOOGLE SHEET URL
 ========================================================= */
 
-const SHEET_URL =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
-    `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`;
+function getSheetURL() {
+
+    return (
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
+        `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`
+    );
+
+}
 
 
 /* =========================================================
    COMPANY METADATA URL
+=========================================================
+
+   IT:
 
    Row 1 → Company
    Row 2 → Role
    Row 3 → Stipend
    Row 4 → CTC
 
+
+   IT1 / IT2 / IT3:
+
+   Row 1 → Company
+   Row 2 → Stipend
+   Row 3 → CTC
+
+
    C = first company column
    Z = maximum supported column
 ========================================================= */
 
-const META_URL =
-    `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
-    `?tqx=out:json&range=C1:Z4&headers=0`;
+function getMetaURL() {
+
+    return (
+        `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
+        `?tqx=out:json&range=${encodeURIComponent(
+            SHEET_NAME + "!C1:Z4"
+        )}&headers=0`
+    );
+
+}
 
 
 let allCompanies = [];
@@ -70,7 +103,18 @@ async function loadSheet() {
         );
 
         console.log(
-            SHEET_URL
+            "Current sheet:",
+            SHEET_NAME
+        );
+
+        console.log(
+            "Sheet URL:",
+            getSheetURL()
+        );
+
+        console.log(
+            "Metadata URL:",
+            getMetaURL()
         );
 
         console.log(
@@ -84,7 +128,7 @@ async function loadSheet() {
 
         const response =
             await fetch(
-                SHEET_URL
+                getSheetURL()
             );
 
 
@@ -152,13 +196,13 @@ async function loadSheet() {
         );
 
         console.log(
-            META_URL
+            getMetaURL()
         );
 
 
         const metaResponse =
             await fetch(
-                META_URL
+                getMetaURL()
             );
 
 
@@ -354,7 +398,7 @@ function processSheet(
 
 
     console.log(
-        "NUMBER OF STUDENTS:",
+        "NUMBER OF STUDENT ROWS:",
         rows.length
     );
 
@@ -363,22 +407,69 @@ function processSheet(
 
 
     /* =====================================================
-       METADATA ROWS
+       DETERMINE SHEET STRUCTURE
+
+       IT:
 
        metaRows[0] → Company
        metaRows[1] → Role
        metaRows[2] → Stipend
        metaRows[3] → CTC
+
+
+       IT1 / IT2 / IT3:
+
+       metaRows[0] → Company
+       metaRows[1] → Stipend
+       metaRows[2] → CTC
+
+       There is NO role row in IT1/IT2/IT3.
     ===================================================== */
 
     const metaRows =
         metaTable.rows || [];
 
 
+    const isMainSheet =
+        SHEET_NAME === "IT";
+
+
+    console.log(
+        "IS MAIN IT SHEET:",
+        isMainSheet
+    );
+
+
     console.log(
         "METADATA ROWS:",
         metaRows.length
     );
+
+
+    /* =====================================================
+       METADATA ROW MAPPING
+    ===================================================== */
+
+    const companyMetaRow =
+        0;
+
+
+    const roleMetaRow =
+        isMainSheet
+            ? 1
+            : null;
+
+
+    const stipendMetaRow =
+        isMainSheet
+            ? 2
+            : 1;
+
+
+    const ctcMetaRow =
+        isMainSheet
+            ? 3
+            : 2;
 
 
     /* =====================================================
@@ -431,7 +522,9 @@ function processSheet(
 
         const companyName =
             getDisplayValue(
-                metaRows[0]?.c?.[
+                metaRows[
+                    companyMetaRow
+                ]?.c?.[
                     metaColumnIndex
                 ]
             ).trim();
@@ -439,14 +532,32 @@ function processSheet(
 
         /* =================================================
            ROLE
+
+           IT:
+               Read role from metadata.
+
+           IT1 / IT2 / IT3:
+               There is no role row.
+               Therefore display "—".
         ================================================= */
 
-        const role =
-            getDisplayValue(
-                metaRows[1]?.c?.[
-                    metaColumnIndex
-                ]
-            ).trim();
+        let role = "—";
+
+
+        if (
+            roleMetaRow !== null
+        ) {
+
+            role =
+                getDisplayValue(
+                    metaRows[
+                        roleMetaRow
+                    ]?.c?.[
+                        metaColumnIndex
+                    ]
+                ).trim();
+
+        }
 
 
         /* =================================================
@@ -455,7 +566,9 @@ function processSheet(
 
         const stipend =
             getDisplayValue(
-                metaRows[2]?.c?.[
+                metaRows[
+                    stipendMetaRow
+                ]?.c?.[
                     metaColumnIndex
                 ]
             ).trim();
@@ -467,10 +580,36 @@ function processSheet(
 
         const ctc =
             getDisplayValue(
-                metaRows[3]?.c?.[
+                metaRows[
+                    ctcMetaRow
+                ]?.c?.[
                     metaColumnIndex
                 ]
             ).trim();
+
+
+        console.log(
+            "COMPANY:",
+            companyName
+        );
+
+
+        console.log(
+            "ROLE:",
+            role
+        );
+
+
+        console.log(
+            "STIPEND:",
+            stipend
+        );
+
+
+        console.log(
+            "CTC:",
+            ctc
+        );
 
 
         /* =================================================
@@ -876,31 +1015,13 @@ function formatAmount(
 
    1. CTC — highest first
    2. If CTC is same → Stipend — highest first
-   3. "-" / missing values are treated as 0
-
-   Examples:
-
-   CTC 13L, Stipend 60K
-   CTC 13L, Stipend 40K
-   CTC 11L, Stipend 40K
-   CTC 9L,  Stipend 24K
-   CTC 9L,  Stipend 20K
-   CTC 9L,  Stipend -
-   CTC -,   Stipend 50K
-   CTC -,   Stipend 20K
-   CTC -,   Stipend -
+   3. Missing values are treated as 0
 ========================================================= */
 
 function compareCompanies(
     a,
     b
 ) {
-
-    /* -----------------------------------------------------
-       CTC
-
-       Missing / "-" = 0
-    ----------------------------------------------------- */
 
     const ctcA =
         parseAmount(a.ctc) ?? 0;
@@ -910,24 +1031,18 @@ function compareCompanies(
         parseAmount(b.ctc) ?? 0;
 
 
-    /* -----------------------------------------------------
-       PRIMARY SORT:
-       CTC — highest first
-    ----------------------------------------------------- */
+    /* PRIMARY SORT: CTC */
 
-    if (ctcA !== ctcB) {
+    if (
+        ctcA !== ctcB
+    ) {
 
         return ctcB - ctcA;
 
     }
 
 
-    /* -----------------------------------------------------
-       SECONDARY SORT:
-       Stipend — highest first
-
-       Missing / "-" = 0
-    ----------------------------------------------------- */
+    /* SECONDARY SORT: STIPEND */
 
     const stipendA =
         parseAmount(a.stipend) ?? 0;
@@ -937,17 +1052,14 @@ function compareCompanies(
         parseAmount(b.stipend) ?? 0;
 
 
-    if (stipendA !== stipendB) {
+    if (
+        stipendA !== stipendB
+    ) {
 
         return stipendB - stipendA;
 
     }
 
-
-    /* -----------------------------------------------------
-       Same CTC and same stipend
-       Keep original order
-    ----------------------------------------------------- */
 
     return 0;
 
@@ -1009,7 +1121,9 @@ function updateDashboardSummary(
                         name.toLowerCase();
 
 
-                    if (key) {
+                    if (
+                        key
+                    ) {
 
                         students.set(
                             key,
@@ -1043,29 +1157,18 @@ function updateDashboardSummary(
     /* =========================================
        STUDENT-WEIGHTED AVERAGE CTC
 
-       Example:
-
-       Company A:
-       CTC = 10 LPA
-       Students = 2
-
-       Company B:
-       CTC = 20 LPA
-       Students = 8
-
-       Average =
-       ((10 × 2) + (20 × 8))
-       ---------------------
-               10
-
-       = 18 LPA
-
        Companies without CTC are excluded.
+
+       Each company's CTC is weighted by
+       the number of students placed.
     ========================================= */
 
-    let totalCTCValue = 0;
+    let totalCTCValue =
+        0;
 
-    let totalCTCStudents = 0;
+
+    let totalCTCStudents =
+        0;
 
 
     companies.forEach(
@@ -1077,11 +1180,6 @@ function updateDashboardSummary(
                 );
 
 
-            /*
-               Ignore companies that
-               do not have a valid CTC.
-            */
-
             if (
                 ctc === null ||
                 !company.count
@@ -1092,13 +1190,9 @@ function updateDashboardSummary(
             }
 
 
-            /*
-               Weight the CTC by the
-               number of students placed.
-            */
-
             totalCTCValue +=
-                ctc * company.count;
+                ctc *
+                company.count;
 
 
             totalCTCStudents +=
@@ -1110,7 +1204,8 @@ function updateDashboardSummary(
 
     const averageCTC =
         totalCTCStudents > 0
-            ? totalCTCValue / totalCTCStudents
+            ? totalCTCValue /
+              totalCTCStudents
             : null;
 
 
@@ -1273,7 +1368,6 @@ function renderCompanies(
     companies.forEach(
         company => {
 
-
             const card =
                 document.createElement(
                     "div"
@@ -1369,7 +1463,6 @@ function renderCompanies(
 
             }
 
-
             else {
 
                 studentSection = `
@@ -1418,7 +1511,6 @@ function renderCompanies(
                     class="card-body"
                 >
 
-
                     <!-- =====================================
                          ROLE
                     ====================================== -->
@@ -1447,7 +1539,6 @@ function renderCompanies(
                     <div
                         class="details"
                     >
-
 
                         <div
                             class="detail-box"
@@ -1500,7 +1591,6 @@ function renderCompanies(
 
                         </div>
 
-
                     </div>
 
 
@@ -1538,7 +1628,6 @@ function renderCompanies(
 
                     ${studentSection}
 
-
                 </div>
 
             `;
@@ -1568,7 +1657,6 @@ function renderCompanies(
                 toggle.addEventListener(
                     "click",
                     () => {
-
 
                         const isOpen =
                             studentsList
@@ -1606,7 +1694,6 @@ function renderCompanies(
                                 "Show Students";
 
                         }
-
 
                         else {
 
@@ -1679,9 +1766,310 @@ function escapeHTML(
    COMPANY / STUDENT SEARCH
 ========================================================= */
 
+function applySearch() {
+
+    const searchInput =
+        document.getElementById(
+            "companySearch"
+        );
+
+
+    if (!searchInput) {
+
+        return;
+
+    }
+
+
+    const searchText =
+        searchInput.value
+            .trim()
+            .toLowerCase();
+
+
+    /* =========================================
+       EMPTY SEARCH
+    ========================================= */
+
+    if (!searchText) {
+
+        renderCompanies(
+            allCompanies
+        );
+
+        return;
+
+    }
+
+
+    /* =========================================
+       SEARCH COMPANY / STUDENT / ROLL NUMBER
+    ========================================= */
+
+    const filteredCompanies =
+        allCompanies
+
+            .map(
+                company => {
+
+                    const companyName =
+                        String(
+                            company.name || ""
+                        ).toLowerCase();
+
+
+                    const companyMatches =
+                        companyName.includes(
+                            searchText
+                        );
+
+
+                    const matchingStudents =
+                        company.students.filter(
+                            student => {
+
+                                const studentName =
+                                    String(
+                                        student.name || ""
+                                    ).toLowerCase();
+
+
+                                const studentRoll =
+                                    String(
+                                        student.roll || ""
+                                    ).toLowerCase();
+
+
+                                return (
+                                    studentName.includes(
+                                        searchText
+                                    ) ||
+                                    studentRoll.includes(
+                                        searchText
+                                    )
+                                );
+
+                            }
+                        );
+
+
+                    /* =================================
+                       COMPANY MATCH
+
+                       Show all students.
+                    ================================= */
+
+                    if (
+                        companyMatches
+                    ) {
+
+                        return company;
+
+                    }
+
+
+                    /* =================================
+                       STUDENT MATCH
+
+                       Show only matching students.
+                    ================================= */
+
+                    if (
+                        matchingStudents.length > 0
+                    ) {
+
+                        return {
+
+                            ...company,
+
+                            students:
+                                matchingStudents,
+
+                            count:
+                                matchingStudents.length
+
+                        };
+
+                    }
+
+
+                    return null;
+
+                }
+            )
+
+            .filter(
+                company =>
+                    company !== null
+            );
+
+
+    console.log(
+        "Search:",
+        searchText
+    );
+
+
+    console.log(
+        "Matching companies:",
+        filteredCompanies
+    );
+
+
+    /* =========================================
+       NO MATCHES
+    ========================================= */
+
+    if (
+        filteredCompanies.length === 0
+    ) {
+
+        document.getElementById(
+            "companyGrid"
+        ).innerHTML = `
+
+            <div
+                class="no-data"
+            >
+
+                <h3>
+                    No results found
+                </h3>
+
+                <p>
+
+                    No company, student or
+                    roll number matches
+                    "${escapeHTML(
+                        searchInput.value
+                    )}"
+
+                </p>
+
+            </div>
+
+        `;
+
+        return;
+
+    }
+
+
+    /* =========================================
+       RENDER RESULTS
+    ========================================= */
+
+    renderCompanies(
+        filteredCompanies
+    );
+
+}
+
+
+/* =========================================================
+   SECTION FILTER
+========================================================= */
+
+function changeSection(
+    selectedSection
+) {
+
+    /* =========================================
+       MAP DROPDOWN VALUE → SHEET NAME
+    ========================================= */
+
+    switch (
+        selectedSection
+    ) {
+
+        case "A":
+
+            SHEET_NAME =
+                "IT1";
+
+            break;
+
+
+        case "B":
+
+            SHEET_NAME =
+                "IT2";
+
+            break;
+
+
+        case "C":
+
+            SHEET_NAME =
+                "IT3";
+
+            break;
+
+
+        case "all":
+
+        default:
+
+            SHEET_NAME =
+                "IT";
+
+            break;
+
+    }
+
+
+    console.log(
+        "Selected section:",
+        selectedSection
+    );
+
+
+    console.log(
+        "Loading sheet:",
+        SHEET_NAME
+    );
+
+
+    /* =========================================
+       CLEAR OLD SEARCH
+    ========================================= */
+
+    const searchInput =
+        document.getElementById(
+            "companySearch"
+        );
+
+
+    if (
+        searchInput
+    ) {
+
+        searchInput.value =
+            "";
+
+    }
+
+
+    /* =========================================
+       LOAD SELECTED SHEET
+    ========================================= */
+
+    loadSheet();
+
+}
+
+
+/* =========================================================
+   INITIALIZE APPLICATION
+========================================================= */
+
 document.addEventListener(
     "DOMContentLoaded",
     () => {
+
+        /* =========================================
+           COMPANY / STUDENT SEARCH
+        ========================================= */
 
         const searchInput =
             document.getElementById(
@@ -1689,201 +2077,44 @@ document.addEventListener(
             );
 
 
-        if (!searchInput) {
+        if (
+            searchInput
+        ) {
 
-            return;
+            searchInput.addEventListener(
+                "input",
+                applySearch
+            );
 
         }
 
 
-        searchInput.addEventListener(
-            "input",
-            () => {
+        /* =========================================
+           SECTION FILTER
+        ========================================= */
 
-                const searchText =
-                    searchInput.value
-                        .trim()
-                        .toLowerCase();
+        const sectionFilter =
+            document.getElementById(
+                "sectionFilter"
+            );
 
 
-                /* =========================================
-                   EMPTY SEARCH
-                ========================================= */
+        if (
+            sectionFilter
+        ) {
 
-                if (!searchText) {
+            sectionFilter.addEventListener(
+                "change",
+                () => {
 
-                    renderCompanies(
-                        allCompanies
+                    changeSection(
+                        sectionFilter.value
                     );
 
-                    return;
-
                 }
+            );
 
-
-                /* =========================================
-                   SEARCH COMPANY / STUDENT / ROLL NUMBER
-                ========================================= */
-
-                const filteredCompanies =
-                    allCompanies
-
-                        .map(
-                            company => {
-
-                                const companyName =
-                                    String(
-                                        company.name || ""
-                                    ).toLowerCase();
-
-
-                                const companyMatches =
-                                    companyName.includes(
-                                        searchText
-                                    );
-
-
-                                const matchingStudents =
-                                    company.students.filter(
-                                        student => {
-
-                                            const studentName =
-                                                String(
-                                                    student.name || ""
-                                                ).toLowerCase();
-
-
-                                            const studentRoll =
-                                                String(
-                                                    student.roll || ""
-                                                ).toLowerCase();
-
-
-                                            return (
-                                                studentName.includes(
-                                                    searchText
-                                                ) ||
-                                                studentRoll.includes(
-                                                    searchText
-                                                )
-                                            );
-
-                                        }
-                                    );
-
-
-                                /* =================================
-                                   COMPANY MATCH
-
-                                   Show all students.
-                                ================================= */
-
-                                if (
-                                    companyMatches
-                                ) {
-
-                                    return company;
-
-                                }
-
-
-                                /* =================================
-                                   STUDENT MATCH
-
-                                   Show only matching students.
-                                ================================= */
-
-                                if (
-                                    matchingStudents.length > 0
-                                ) {
-
-                                    return {
-
-                                        ...company,
-
-                                        students:
-                                            matchingStudents,
-
-                                        count:
-                                            matchingStudents.length
-
-                                    };
-
-                                }
-
-
-                                return null;
-
-                            }
-                        )
-
-                        .filter(
-                            company =>
-                                company !== null
-                        );
-
-
-                console.log(
-                    "Search:",
-                    searchText
-                );
-
-
-                console.log(
-                    "Matching companies:",
-                    filteredCompanies
-                );
-
-
-                /* =========================================
-                   NO MATCHES
-                ========================================= */
-
-                if (
-                    filteredCompanies.length === 0
-                ) {
-
-                    document.getElementById(
-                        "companyGrid"
-                    ).innerHTML = `
-
-                        <div
-                            class="no-data"
-                        >
-
-                            <h3>
-                                No results found
-                            </h3>
-
-                            <p>
-
-                                No company, student or
-                                roll number matches
-                                "${escapeHTML(
-                                    searchInput.value
-                                )}"
-
-                            </p>
-
-                        </div>
-
-                    `;
-
-                    return;
-
-                }
-
-
-                /* =========================================
-                   RENDER RESULTS
-                ========================================= */
-
-                renderCompanies(
-                    filteredCompanies
-                );
-
-            }
-        );
+        }
 
     }
 );
