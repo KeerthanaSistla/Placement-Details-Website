@@ -472,36 +472,50 @@ function applySearch() {
 
             let students = company.students;
 
+            // Filter by section first
             if (selectedSection !== "all") {
                 students = students.filter(
                     s => s.section.toUpperCase() === selectedSection.toUpperCase()
                 );
             }
 
+            // Then filter by search query
             if (query) {
 
-                const companyMatches = company.name.toLowerCase().includes(query);
+                const companyMatches =
+                    company.name.toLowerCase().includes(query);
 
-                // Company name matches -> keep every student in the section
+                // If company matches, keep all students
+                // from the selected section.
                 if (!companyMatches) {
                     students = students.filter(s =>
                         s.name.toLowerCase().includes(query) ||
                         s.roll.toLowerCase().includes(query)
                     );
                 }
-
             }
 
             if (students.length === 0) return null;
 
-            return { ...company, students, count: students.length };
+            return {
+                ...company,
+                students,
+                count: students.length
+            };
 
         })
         .filter(Boolean);
 
+
+    // IMPORTANT:
+    // Update the summary using the filtered data.
+    updateDashboardSummary(filtered);
+
+
     if (filtered.length === 0) {
 
-        const sectionText = selectedSection !== "all" ? ` in ${selectedSection}` : "";
+        const sectionText =
+            selectedSection !== "all" ? ` in ${selectedSection}` : "";
 
         const message = query
             ? `No company, student or roll number matches "${escapeHTML(input.value)}"${sectionText}.`
@@ -515,11 +529,9 @@ function applySearch() {
         `;
 
         return;
-
     }
 
     renderCompanies(filtered);
-
 }
 
 
