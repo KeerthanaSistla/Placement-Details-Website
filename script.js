@@ -377,7 +377,6 @@ function renderCompanies(companies) {
                             <div class="student-row">
                                 <div class="student-roll">${escapeHTML(s.roll)}</div>
                                 <div class="student-name">${escapeHTML(s.name || "—")}</div>
-                                <span class="student-section">${escapeHTML(s.section)}</span>
                             </div>
                         `).join("")}
                     </div>
