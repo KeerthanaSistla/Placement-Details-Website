@@ -4,167 +4,90 @@
 <head>
 
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <meta
-        name="viewport"
-        content="width=device-width, initial-scale=1.0"
-    >
+    <title>IT27 Placement Dashboard</title>
 
-    <title>Placement Dashboard</title>
-
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link
         rel="stylesheet"
-        href="style.css"
+        href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700&family=DM+Sans:wght@400;500;700&display=swap"
     >
+
+    <link rel="stylesheet" href="style.css">
 
 </head>
 
 
 <body>
 
-
-    <!-- =====================================================
-         HEADER
-    ====================================================== -->
-
     <header>
-
-        <h1>
-            IT27 Placement Dashboard
-        </h1>
-
-        <p>
-            Company-wise placement details
-        </p>
-
+        <div class="header-inner">
+            <h1>IT27 Placement Dashboard</h1>
+            <p>Company-wise placement details</p>
+        </div>
     </header>
 
 
-
-    <!-- =====================================================
-         MAIN
-    ====================================================== -->
-
     <main class="container">
 
-
-        <!-- =================================================
-             DASHBOARD SUMMARY
-        ================================================== -->
-
-        <div
-            class="dashboard-summary"
-            id="dashboardSummary"
-        >
+        <!-- Summary -->
+        <section class="dashboard-summary" id="dashboardSummary" aria-label="Placement summary">
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Companies
-                </div>
-
-                <div
-                    class="summary-value"
-                    id="totalCompanies"
-                >
-                    0
-                </div>
-
+                <div class="summary-label">Companies</div>
+                <div class="summary-value" id="totalCompanies">0</div>
             </div>
-
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Students Placed
-                </div>
-
-                <div
-                    class="summary-value"
-                    id="totalStudents"
-                >
-                    0
-                </div>
-
+                <div class="summary-label">Students placed</div>
+                <div class="summary-value" id="totalStudents">0</div>
             </div>
-
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Highest CTC
-                </div>
-
-                <div
-                    class="summary-value"
-                    id="highestCTC"
-                >
-                    —
-                </div>
-
+                <div class="summary-label">Highest CTC</div>
+                <div class="summary-value" id="highestCTC">—</div>
             </div>
-
 
             <div class="summary-card">
-
-                <div class="summary-label">
-                    Average CTC
-                </div>
-
-                <div
-                    class="summary-value"
-                    id="averageCTC"
-                >
-                    —
-                </div>
-
+                <div class="summary-label">Average CTC</div>
+                <div class="summary-value" id="averageCTC">—</div>
             </div>
 
-        </div>
+        </section>
 
 
-
-        <!-- =================================================
-             SEARCH
-        ================================================== -->
-
+        <!-- Search + section filter -->
         <div class="search-container">
 
+            <label class="visually-hidden" for="companySearch">
+                Search by company, student name or roll number
+            </label>
+
             <input
-                type="text"
+                type="search"
                 id="companySearch"
-                placeholder="Search company, student name or roll number..."
+                placeholder="Search company, student name or roll number"
                 autocomplete="off"
             >
 
+            <label class="visually-hidden" for="sectionFilter">Section</label>
+
             <select id="sectionFilter">
-                <option value="all">All</option>
-                <option value="A">IT 1</option>
-                <option value="B">IT 2</option>
-                <option value="C">IT 3</option>
+                <option value="all">All sections</option>
+                <option value="IT1">IT 1</option>
+                <option value="IT2">IT 2</option>
+                <option value="IT3">IT 3</option>
             </select>
 
         </div>
 
 
-
-        <!-- =================================================
-             COMPANY GRID
-        ================================================== -->
-
-        <div
-            class="company-grid"
-            id="companyGrid"
-        >
-
-            <!-- Company cards generated here -->
-
-        </div>
-
+        <!-- Company cards are generated by script.js -->
+        <div class="company-grid" id="companyGrid" aria-live="polite"></div>
 
     </main>
-
-
 
     <script src="script.js"></script>
 

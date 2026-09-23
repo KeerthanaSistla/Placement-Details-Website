@@ -1,34 +1,119 @@
 /* =========================================================
-   GOOGLE SHEET CONFIGURATION
+   CONFIGURATION
+
+   Sheet layout (matches your workbook):
+
+   IT   (master, metadata only)
+        Row 1 = Company | Row 2 = Role | Row 3 = Stipend | Row 4 = CTC
+        Columns start at C
+
+   IT1 / IT2 / IT3   (students, one tab per section)
+        Row 1-3 = mirrored metadata (no Role row!)
+        Row 4+  = Roll Number | Name | TRUE/FALSE per company
 ========================================================= */
 
-const SHEET_ID =
-    "1gMLik20lPryuWYmKSk9qU_fPxYcMq31zpTjiJzgze7M";
+const SHEET_ID = "1gMLik20lPryuWYmKSk9qU_fPxYcMq31zpTjiJzgze7M";
 
-const SHEET_NAME = "StudentDetails";
+const META_SHEET = "IT";
+const SECTION_SHEETS = ["IT1", "IT2", "IT3"];
 
-
-/* =========================================================
-   GLOBAL STATE
-========================================================= */
+const LAST_COL = "BU";      // last company column to read
+const LAST_STUDENT_ROW = 200;
 
 let allCompanies = [];
 
 
 /* =========================================================
-   MAIN URL
+   FETCH HELPERS
+   - headers=0  -> row numbers never shift (gviz otherwise
+                   guesses how many header rows there are)
+   - range=...  -> one row at a time, so each request has a
+                   uniform cell type. gviz blanks out cells
+                   whose type differs from the column's
+                   majority type (e.g. "7.5K" in a column that
+                   is otherwise TRUE/FALSE).
 ========================================================= */
 
-function getSheetURL() {
+function gvizURL(sheet, range) {
     return (
         `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq` +
-        `?tqx=out:json&sheet=${encodeURIComponent(SHEET_NAME)}`
+        `?tqx=out:json&headers=0` +
+        `&sheet=${encodeURIComponent(sheet)}` +
+        `&range=${encodeURIComponent(range)}`
     );
+}
+
+function parseGoogleResponse(text) {
+    const start = text.indexOf("(") + 1;
+    const end = text.lastIndexOf(")");
+
+    if (start <= 0 || end <= start) {
+        throw new Error("Invalid Google Sheets response.");
+    }
+
+    return JSON.parse(text.substring(start, end));
+}
+
+async function fetchRows(sheet, range) {
+    const response = await fetch(gvizURL(sheet, range));
+
+    if (!response.ok) {
+        throw new Error(`Google Sheets returned ${response.status} for ${sheet}`);
+    }
+
+    const data = parseGoogleResponse(await response.text());
+
+    if (data.status === "error") {
+        const e = (data.errors && data.errors[0]) || {};
+        throw new Error(e.detailed_message || e.message || `Could not read ${sheet}`);
+    }
+
+    return (data.table && data.table.rows) || [];
 }
 
 
 /* =========================================================
-   LOAD SHEET
+   CELL HELPERS
+========================================================= */
+
+function cellText(cell) {
+    if (!cell) return "";
+
+    const v = cell.v;
+
+    if (typeof v === "number") return String(v);
+
+    // Dates: gviz sends "Date(2026,8,10)". Use the formatted text.
+    if (typeof v === "string" && v.startsWith("Date(")) {
+        return String(cell.f ?? "").trim();
+    }
+
+    if (v !== null && v !== undefined) return String(v).trim();
+
+    return "";
+}
+
+function isChecked(cell) {
+    return !!cell && (
+        cell.v === true ||
+        String(cell.v).trim().toLowerCase() === "true"
+    );
+}
+
+function normalizeDisplay(value) {
+    return String(value || "")
+        .replace(/[\u00A0\u200B\uFEFF\u2000-\u200A\u202F\u205F\u3000]/g, " ")
+        .replace(/\s+/g, " ")
+        .trim();
+}
+
+function normalizeKey(value) {
+    return normalizeDisplay(value).replace(/\s/g, "").toLowerCase();
+}
+
+
+/* =========================================================
+   LOAD
 ========================================================= */
 
 async function loadSheet() {
@@ -39,281 +124,223 @@ async function loadSheet() {
 
     try {
 
-        const response = await fetch(getSheetURL());
+        // 1. Company metadata from the master "IT" tab (only place with Role)
+        const [companyRow, roleRow, stipendRow, ctcRow] = await Promise.all(
+            [1, 2, 3, 4].map(r => fetchRows(META_SHEET, `C${r}:${LAST_COL}${r}`))
+        );
 
-        if (!response.ok) {
-            throw new Error(`Google Sheets returned ${response.status}`);
+        const cellsOf = rows => (rows[0] && rows[0].c) || [];
+
+        const companyCells = cellsOf(companyRow);
+        const roleCells    = cellsOf(roleRow);
+        const stipendCells = cellsOf(stipendRow);
+        const ctcCells     = cellsOf(ctcRow);
+
+
+        // 2. One "offer" per company column. Identical columns
+        //    (same name + role + stipend + CTC) are merged; two
+        //    different offers from one company (e.g. IBM intern
+        //    vs IBM full-time) stay separate.
+        const offers = new Map();
+        const columnToOffer = new Map();
+
+        for (let i = 0; i < companyCells.length; i++) {
+
+            const name = normalizeDisplay(cellText(companyCells[i]));
+            if (!name) continue;
+
+            const role    = normalizeDisplay(cellText(roleCells[i]))    || "—";
+            const stipend = normalizeDisplay(cellText(stipendCells[i])) || "—";
+            const ctc     = normalizeDisplay(cellText(ctcCells[i]))     || "—";
+
+            const key = [name, role, stipend, ctc].map(normalizeKey).join("|");
+
+            if (!offers.has(key)) {
+                offers.set(key, {
+                    name, role, stipend, ctc,
+                    students: [],
+                    seen: new Set()
+                });
+            }
+
+            columnToOffer.set(i, offers.get(key));
         }
 
-        const text = await response.text();
-        const data = parseGoogleResponse(text);
 
-        if (!data.table || !data.table.rows) {
-            throw new Error("No table data found.");
-        }
+        // 3. Students from IT1 / IT2 / IT3
+        const sheets = await Promise.all(
+            SECTION_SHEETS.map(s =>
+                fetchRows(s, `A4:${LAST_COL}${LAST_STUDENT_ROW}`)
+            )
+        );
 
-        allCompanies = processSheet(data.table);
-        allCompanies.sort(compareCompanies);
+        sheets.forEach((rows, s) => {
+
+            const section = SECTION_SHEETS[s];
+
+            rows.forEach(row => {
+
+                const cells = row.c || [];
+
+                const roll = cellText(cells[0]).replace(/\.0+$/, "");
+                const name = normalizeDisplay(cellText(cells[1]));
+
+                // Skips blank rows and the "Total" row at the bottom
+                if (!/^\d{6,}$/.test(roll)) return;
+
+                columnToOffer.forEach((offer, i) => {
+
+                    // company column i lives in sheet column i + 2 (A, B are roll/name)
+                    if (!isChecked(cells[i + 2])) return;
+                    if (offer.seen.has(roll)) return;
+
+                    offer.seen.add(roll);
+                    offer.students.push({ roll, name, section });
+
+                });
+
+            });
+
+        });
+
+
+        allCompanies = Array.from(offers.values())
+            .filter(o => o.students.length > 0)
+            .map(o => ({
+                name: o.name,
+                role: o.role,
+                stipend: o.stipend,
+                ctc: o.ctc,
+                students: o.students,
+                count: o.students.length
+            }))
+            .sort(compareCompanies);
 
         updateDashboardSummary(allCompanies);
         renderCompanies(allCompanies);
+
     }
     catch (err) {
+
         console.error(err);
+
         grid.innerHTML = `
             <div class="error">
                 <h3>Unable to load placement data</h3>
                 <p>${escapeHTML(err.message)}</p>
-            </div>`;
-    }
-}
+            </div>
+        `;
 
-
-/* =========================================================
-   PARSE GVIZ RESPONSE
-========================================================= */
-
-function parseGoogleResponse(text) {
-    const start = text.indexOf("(") + 1;
-    const end   = text.lastIndexOf(")");
-    if (start <= 0 || end <= start) {
-        throw new Error("Invalid Google Sheets response.");
-    }
-    return JSON.parse(text.substring(start, end));
-}
-
-
-/* =========================================================
-   STRING NORMALIZERS
-========================================================= */
-
-function normalizeKey(value) {
-    return String(value || "")
-        .replace(/[\s\u00A0\u200B\uFEFF\u2000-\u200A\u202F\u205F\u3000]/g, "")
-        .trim()
-        .toLowerCase();
-}
-
-function normalizeDisplay(value) {
-    return String(value || "")
-        .replace(/[\u00A0\u200B\uFEFF\u2000-\u200A\u202F\u205F\u3000]/g, " ")
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
-
-/* =========================================================
-   GET CELL DISPLAY VALUE
-========================================================= */
-
-function getDisplayValue(cell) {
-    if (!cell) return "";
-    if (cell.f !== undefined && cell.f !== null) return String(cell.f).trim();
-    if (cell.v !== undefined && cell.v !== null) return String(cell.v).trim();
-    return "";
-}
-
-
-/* =========================================================
-   BUILD HEADER INDEX MAP (read by header name)
-========================================================= */
-
-function buildHeaderIndex(table) {
-
-    const cols = table.cols || [];
-
-    const aliases = {
-        roll:    ["roll number", "rollnumber", "roll no", "roll"],
-        name:    ["name"],
-        company: ["company", "company name"],
-        role:    ["role", "role name"],
-        stipend: ["stipend"],
-        ctc:     ["ctc"]
-    };
-
-    const idx = {};
-
-    for (const key of Object.keys(aliases)) {
-        idx[key] = -1;
-        const wanted = aliases[key];
-        for (let c = 0; c < cols.length; c++) {
-            const label = normalizeKey(cols[c]?.label || "");
-            if (wanted.includes(label)) {
-                idx[key] = c;
-                break;
-            }
-        }
     }
 
-    return idx;
 }
 
 
 /* =========================================================
-   PROCESS SHEET → GROUP BY COMPANY
+   AMOUNTS
+   CTC column: bare numbers (5.5, "18-20") mean LPA.
+   Stipend column: "7.5K", "1L", "20k".
 ========================================================= */
 
-function processSheet(table) {
-
-    const rows = table.rows || [];
-    const idx  = buildHeaderIndex(table);
-
-    const COL = {
-        roll:    idx.roll    >= 0 ? idx.roll    : 0,
-        name:    idx.name    >= 0 ? idx.name    : 1,
-        company: idx.company >= 0 ? idx.company : 4,
-        role:    idx.role    >= 0 ? idx.role    : 5,
-        stipend: idx.stipend >= 0 ? idx.stipend : 7,
-        ctc:     idx.ctc     >= 0 ? idx.ctc     : 8
-    };
-
-    const companyMap = new Map();
-
-    rows.forEach(row => {
-
-        const cells = row.c || [];
-
-        const roll    = getDisplayValue(cells[COL.roll]);
-        const name    = getDisplayValue(cells[COL.name]);
-        const company = getDisplayValue(cells[COL.company]);
-        const role    = getDisplayValue(cells[COL.role]).trim();
-        const stipend = getDisplayValue(cells[COL.stipend]).trim();
-        const ctc     = getDisplayValue(cells[COL.ctc]).trim();
-
-        if (normalizeKey(roll) === "rollnumber") return;
-        if (!company || !company.trim()) return;
-        if (!roll && !name) return;
-
-        const companyKey     = normalizeKey(company);
-        const companyDisplay = normalizeDisplay(company);
-
-        if (!companyKey) return;
-
-        if (!companyMap.has(companyKey)) {
-            companyMap.set(companyKey, {
-                name: companyDisplay,
-                role: role || "—",
-                stipend: stipend || "—",
-                ctc: ctc || "—",
-                count: 0,
-                students: [],
-                _seen: new Set()
-            });
-        }
-
-        const entry = companyMap.get(companyKey);
-
-        if (entry.role === "—" && role)       entry.role = role;
-        if (entry.stipend === "—" && stipend) entry.stipend = stipend;
-        if (entry.ctc === "—" && ctc)         entry.ctc = ctc;
-
-        const rollKey = normalizeKey(roll).replace(/\.0+$/, "");
-        const dedupeKey = rollKey || normalizeKey(name);
-
-        if (!dedupeKey) return;
-        if (entry._seen.has(dedupeKey)) return;
-
-        entry._seen.add(dedupeKey);
-        entry.students.push({ roll: rollKey, name });
-        entry.count++;
-    });
-
-    const companies = Array.from(companyMap.values());
-    companies.forEach(c => delete c._seen);
-    return companies;
+function isPlainLPA(value) {
+    return /^\d+(\.\d+)?(\s*-\s*\d+(\.\d+)?)?$/.test(String(value).trim());
 }
 
+function parseAmount(value, bareUnit = 1) {
 
-/* =========================================================
-   NUMERIC PARSING / FORMATTING
-========================================================= */
-
-function parseAmount(value) {
     if (!value || value === "—") return null;
+
     const cleaned = String(value)
         .replace(/,/g, "")
         .replace(/[₹$]/g, "")
         .trim()
         .toLowerCase();
-    const match = cleaned.match(/([\d.]+)\s*(lpa|lakh|lakhs|k)?/);
+
+    const match = cleaned.match(/(\d+(?:\.\d+)?)\s*(lpa|lakhs?|l|k)?/);
+
     if (!match) return null;
+
     let amount = parseFloat(match[1]);
-    const unit = match[2];
-    if (unit === "lpa" || unit === "lakh" || unit === "lakhs") amount *= 100000;
-    else if (unit === "k") amount *= 1000;
-    return amount;
+
+    switch (match[2]) {
+        case "lpa":
+        case "lakh":
+        case "lakhs":
+        case "l":  return amount * 100000;
+        case "k":  return amount * 1000;
+        default:   return amount * bareUnit;
+    }
+
+}
+
+const parseCTC     = v => parseAmount(v, 100000);
+const parseStipend = v => parseAmount(v, 1);
+
+function displayCTC(value) {
+    return value !== "—" && isPlainLPA(value) ? `${value} LPA` : value;
 }
 
 function formatAmount(amount) {
-    if (amount === null || amount === undefined || Number.isNaN(amount)) return "—";
+
+    if (amount === null || amount === undefined || Number.isNaN(amount)) {
+        return "—";
+    }
+
     if (amount >= 100000) return (amount / 100000).toFixed(2) + " LPA";
     if (amount >= 1000)   return (amount / 1000).toFixed(2) + "K";
+
     return amount.toFixed(2);
+
 }
-
-
-/* =========================================================
-   SORT
-========================================================= */
 
 function compareCompanies(a, b) {
-    const ctcA = parseAmount(a.ctc) ?? 0;
-    const ctcB = parseAmount(b.ctc) ?? 0;
-    if (ctcA !== ctcB) return ctcB - ctcA;
-    const stipendA = parseAmount(a.stipend) ?? 0;
-    const stipendB = parseAmount(b.stipend) ?? 0;
-    return stipendB - stipendA;
+
+    const ctcDiff = (parseCTC(b.ctc) ?? 0) - (parseCTC(a.ctc) ?? 0);
+    if (ctcDiff !== 0) return ctcDiff;
+
+    return (parseStipend(b.stipend) ?? 0) - (parseStipend(a.stipend) ?? 0);
+
 }
 
 
 /* =========================================================
-   DASHBOARD SUMMARY (unique counts)
+   DASHBOARD SUMMARY
 ========================================================= */
 
 function updateDashboardSummary(companies) {
 
-    /* Unique companies */
-    const companySet = new Set();
-    companies.forEach(c => {
-        const k = normalizeKey(c.name);
-        if (k) companySet.add(k);
-    });
+    // "UBS (1)" and "UBS (2)" count as one company
+    const companySet = new Set(
+        companies.map(c => normalizeKey(c.name.replace(/\s*\(\d+\)\s*$/, "")))
+    );
 
-    /* Unique students (roll number, deduped) */
     const studentSet = new Set();
-    companies.forEach(c => {
-        c.students.forEach(s => {
-            const rollKey = normalizeKey(s.roll).replace(/\.0+$/, "");
-            const nameKey = normalizeKey(s.name);
-            const k = rollKey || nameKey;
-            if (k) studentSet.add(k);
-        });
-    });
+    companies.forEach(c => c.students.forEach(s => studentSet.add(s.roll)));
 
-    /* Highest CTC */
     let highest = null;
-    companies.forEach(c => {
-        const amt = parseAmount(c.ctc);
-        if (amt === null) return;
-        if (highest === null || amt > highest.amount) {
-            highest = { amount: amt, display: c.ctc };
-        }
-    });
+    let sum = 0;
+    let weight = 0;
 
-    /* Student-weighted average CTC */
-    let sum = 0, cnt = 0;
     companies.forEach(c => {
-        const amt = parseAmount(c.ctc);
-        if (amt === null || !c.count) return;
-        sum += amt * c.count;
-        cnt += c.count;
+
+        const amount = parseCTC(c.ctc);
+        if (amount === null) return;
+
+        if (!highest || amount > highest.amount) {
+            highest = { amount, display: displayCTC(c.ctc) };
+        }
+
+        sum += amount * c.count;
+        weight += c.count;
+
     });
-    const avg = cnt > 0 ? sum / cnt : null;
 
     document.getElementById("totalCompanies").textContent = companySet.size;
-    document.getElementById("totalStudents").textContent  = studentSet.size;
-    document.getElementById("highestCTC").textContent     = highest ? highest.display : "—";
-    document.getElementById("averageCTC").textContent     = avg !== null ? formatAmount(avg) : "—";
+    document.getElementById("totalStudents").textContent = studentSet.size;
+    document.getElementById("highestCTC").textContent = highest ? highest.display : "—";
+    document.getElementById("averageCTC").textContent =
+        weight > 0 ? formatAmount(sum / weight) : "—";
+
 }
 
 
@@ -324,6 +351,7 @@ function updateDashboardSummary(companies) {
 function renderCompanies(companies) {
 
     const grid = document.getElementById("companyGrid");
+
     grid.innerHTML = "";
 
     if (companies.length === 0) {
@@ -337,69 +365,85 @@ function renderCompanies(companies) {
         card.className = "company-card";
 
         const studentSection = company.students.length
-            ? `<div class="students-section">
-                   <button class="students-toggle" type="button">
-                       <span>Show Students</span>
-                       <span class="arrow">▼</span>
-                   </button>
-                   <div class="students-list">
-                       ${company.students.map(s => `
-                           <div class="student-row">
-                               <div class="student-roll">${escapeHTML(s.roll)}</div>
-                               <div class="student-name">${escapeHTML(s.name)}</div>
-                           </div>`).join("")}
-                   </div>
-               </div>`
-            : `<div class="students-section">
-                   <div class="no-students">No students selected</div>
-               </div>`;
+            ? `
+                <div class="students-section">
+                    <button class="students-toggle" type="button">
+                        <span>Show students</span>
+                        <span class="arrow">▼</span>
+                    </button>
+
+                    <div class="students-list">
+                        ${company.students.map(s => `
+                            <div class="student-row">
+                                <div class="student-roll">${escapeHTML(s.roll)}</div>
+                                <div class="student-name">${escapeHTML(s.name || "—")}</div>
+                                <span class="student-section">${escapeHTML(s.section)}</span>
+                            </div>
+                        `).join("")}
+                    </div>
+                </div>
+            `
+            : `
+                <div class="students-section">
+                    <div class="no-students">No students selected</div>
+                </div>
+            `;
 
         card.innerHTML = `
-            <div class="card-header"><h2>${escapeHTML(company.name)}</h2></div>
+            <div class="card-header">
+                <h2>${escapeHTML(company.name)}</h2>
+                <div class="role">${escapeHTML(company.role)}</div>
+            </div>
+
             <div class="card-body">
-                <div class="role" style="text-align:center;color:#777;font-size:14px;margin-bottom:18px;">
-                    ${escapeHTML(company.role)}
-                </div>
+
                 <div class="details">
+                    <div class="detail-box detail-ctc">
+                        <div class="detail-title">CTC</div>
+                        <div class="detail-value">${escapeHTML(displayCTC(company.ctc))}</div>
+                    </div>
+
                     <div class="detail-box">
                         <div class="detail-title">Stipend</div>
                         <div class="detail-value">${escapeHTML(company.stipend)}</div>
                     </div>
-                    <div class="detail-box">
-                        <div class="detail-title">CTC</div>
-                        <div class="detail-value">${escapeHTML(company.ctc)}</div>
-                    </div>
                 </div>
+
                 <div class="count-box">
-                    <div class="count-label">Students</div>
-                    <div class="count-value">${company.count}</div>
+                    <span class="count-label">Students selected</span>
+                    <span class="count-value">${company.count}</span>
                 </div>
+
                 ${studentSection}
-            </div>`;
+
+            </div>
+        `;
 
         const toggle = card.querySelector(".students-toggle");
-        const list   = card.querySelector(".students-list");
+        const list = card.querySelector(".students-list");
+
         if (toggle && list) {
             toggle.addEventListener("click", () => {
+
                 const open = list.classList.contains("show");
+
                 list.classList.toggle("show");
                 toggle.classList.toggle("open");
+
                 toggle.querySelector("span:first-child").textContent =
-                    open ? "Show Students" : "Hide Students";
+                    open ? "Show students" : "Hide students";
+
             });
         }
 
         grid.appendChild(card);
+
     });
+
 }
 
-
-/* =========================================================
-   ESCAPE HTML
-========================================================= */
-
 function escapeHTML(value) {
-    return String(value)
+    return String(value ?? "")
         .replace(/&/g, "&amp;")
         .replace(/</g, "&lt;")
         .replace(/>/g, "&gt;")
@@ -409,43 +453,74 @@ function escapeHTML(value) {
 
 
 /* =========================================================
-   SEARCH
+   SEARCH + SECTION FILTER
+   <select> values must be: all | IT1 | IT2 | IT3
 ========================================================= */
 
 function applySearch() {
 
     const input = document.getElementById("companySearch");
-    if (!input) return;
+    const sectionFilter = document.getElementById("sectionFilter");
 
-    const q = input.value.trim().toLowerCase();
+    if (!input || !sectionFilter) return;
 
-    if (!q) { renderCompanies(allCompanies); return; }
+    const query = input.value.trim().toLowerCase();
+    const aliases = { A: "IT1", B: "IT2", C: "IT3" };
+    const selectedSection = aliases[sectionFilter.value] || sectionFilter.value;
 
-    const filtered = allCompanies.map(company => {
-        const cName = String(company.name || "").toLowerCase();
-        if (cName.includes(q)) return company;
+    const filtered = allCompanies
+        .map(company => {
 
-        const matches = company.students.filter(s =>
-            String(s.name || "").toLowerCase().includes(q) ||
-            String(s.roll || "").toLowerCase().includes(q)
-        );
+            let students = company.students;
 
-        if (matches.length) {
-            return { ...company, students: matches, count: matches.length };
-        }
-        return null;
-    }).filter(c => c !== null);
+            if (selectedSection !== "all") {
+                students = students.filter(
+                    s => s.section.toUpperCase() === selectedSection.toUpperCase()
+                );
+            }
 
-    if (!filtered.length) {
+            if (query) {
+
+                const companyMatches = company.name.toLowerCase().includes(query);
+
+                // Company name matches -> keep every student in the section
+                if (!companyMatches) {
+                    students = students.filter(s =>
+                        s.name.toLowerCase().includes(query) ||
+                        s.roll.toLowerCase().includes(query)
+                    );
+                }
+
+            }
+
+            if (students.length === 0) return null;
+
+            return { ...company, students, count: students.length };
+
+        })
+        .filter(Boolean);
+
+    if (filtered.length === 0) {
+
+        const sectionText = selectedSection !== "all" ? ` in ${selectedSection}` : "";
+
+        const message = query
+            ? `No company, student or roll number matches "${escapeHTML(input.value)}"${sectionText}.`
+            : `No placement data found${sectionText}.`;
+
         document.getElementById("companyGrid").innerHTML = `
             <div class="no-data">
                 <h3>No results found</h3>
-                <p>No company, student or roll number matches "${escapeHTML(input.value)}"</p>
-            </div>`;
+                <p>${message}</p>
+            </div>
+        `;
+
         return;
+
     }
 
     renderCompanies(filtered);
+
 }
 
 
@@ -454,8 +529,13 @@ function applySearch() {
 ========================================================= */
 
 document.addEventListener("DOMContentLoaded", () => {
+
     const input = document.getElementById("companySearch");
+    const sectionFilter = document.getElementById("sectionFilter");
+
     if (input) input.addEventListener("input", applySearch);
+    if (sectionFilter) sectionFilter.addEventListener("change", applySearch);
+
 });
 
 loadSheet();
